@@ -13,7 +13,36 @@ import urllib.parse
 # 0. SETUP & KONFIGURATION
 # ==========================================
 st.set_page_config(page_title="SafeSite Drohne", page_icon="logo.jpg", layout="wide")
+
 # ----------------------------------------------------
+# 🔴 HIER DEINEN GITHUB-LINK EINFÜGEN!
+LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite-drohne/main/logo.jpg"
+# ----------------------------------------------------
+
+# DESIGN & CSS ANPASSUNGEN
+st.markdown(f"""
+<style>
+    /* Menü-Button (Drei Punkte) oben rechts verstecken */
+    #MainMenu {{visibility: hidden;}}
+    
+    /* "Made with Streamlit" Footer verstecken */
+    footer {{visibility: hidden;}}
+    
+    /* Den störenden "Deploy"-Button verstecken */
+    .stAppDeployButton {{display: none;}}
+    
+    /* WICHTIG: Header NICHT verstecken, sonst ist das Menü auf dem Handy weg! */
+    /* header {{visibility: hidden;}} <--- Diese Zeile war das Problem */
+</style>
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="apple-touch-icon" sizes="180x180" href="{LOGO_URL_GITHUB}">
+<link rel="icon" type="image/png" href="{LOGO_URL_GITHUB}">
+""", unsafe_allow_html=True)
 
 # 🔒 DATEI FÜR BENUTZERDATEN
 USER_DB_FILE = "users.json"
@@ -21,21 +50,21 @@ USER_DB_FILE = "users.json"
 # Funktion: Benutzer laden
 def load_users():
     if not os.path.exists(USER_DB_FILE):
-        default_users = {"admin": "SafeSite"} 
+        default_users = {"admin": "1234"} 
         with open(USER_DB_FILE, "w") as f:
             json.dump(default_users, f)
         return default_users
     with open(USER_DB_FILE, "r") as f:
         return json.load(f)
 
-# Funktion: Benutzer speichern (Neu oder Ändern)
+# Funktion: Benutzer speichern
 def save_user(username, password):
     users = load_users()
     users[username] = password
     with open(USER_DB_FILE, "w") as f:
         json.dump(users, f)
 
-# Funktion: Benutzer LÖSCHEN (Neu!)
+# Funktion: Benutzer löschen
 def delete_user(username):
     users = load_users()
     if username in users:
@@ -45,18 +74,10 @@ def delete_user(username):
 
 # 🔴 API Key sicher aus den Secrets laden (für Cloud)
 try:
-    # Versuch 1: Wir sind in der Cloud (Secrets Tresor)
     API_KEY = st.secrets["GOOGLE_API_KEY"]
 except:
-    # Versuch 2: Wir sind lokal auf dem MacBook (Notfall-Lösung)
-    # Hier deinen Schlüssel für lokale Tests einfügen, falls nötig
+    # Fallback für lokales Testen
     API_KEY = "AIzaSyC6VlkfBdItsTWec69GXN2dExTQjlT9LgQ"
-
-# Setup
-try:
-    genai.configure(api_key=API_KEY)
-except:
-    pass
 
 LOGO_FILE = "logo.jpg" 
 TITELBILD_FILE = "titelbild.png" 
@@ -299,7 +320,7 @@ with st.sidebar:
             st.session_state.video_path = None
             st.rerun()
             
-    st.caption("SSD SafeSite App v12.0")
+    st.caption("SSD SafeSite App v15.0")
 
 # ==========================================
 # HAUPTBEREICH: TITELBILD
@@ -332,7 +353,7 @@ if selected_mode == "🏠 Home":
     col1, col2, col3 = st.columns(3)
     
     link_insta = "https://instagram.com/safesitedrohne" 
-    link_face = "https://www.facebook.com/profile.php?id=61585259470058"
+    link_face = "https://facebook.com/safesitedrohne"
     link_web = "https://safesitedrohne.ch"
     
     with col1:
@@ -472,12 +493,11 @@ elif selected_mode == "🛡️ SafeSite-Check":
                 st.session_state.video_path = None
                 st.rerun()
 
-# >>> MODUS 4: ADMIN / KUNDENVERWALTUNG (UPDATE) <<<
+# >>> MODUS 4: ADMIN / KUNDENVERWALTUNG <<<
 elif st.session_state.logged_in and st.session_state.current_user == "admin" and selected_mode == "👥 Kundenverwaltung":
     st.subheader("👥 Kundenverwaltung (Admin)")
     st.markdown("Hier können Sie Kunden verwalten.")
     
-    # 1. NEUEN KUNDEN ANLEGEN
     with st.expander("➕ Neuen Kunden anlegen", expanded=True):
         with st.form("new_user_form"):
             new_user = st.text_input("Firmenname / Benutzername")
@@ -491,11 +511,9 @@ elif st.session_state.logged_in and st.session_state.current_user == "admin" and
                 else:
                     st.error("Bitte Namen und Code eingeben.")
 
-    # 2. KUNDEN LÖSCHEN
     st.divider()
     with st.expander("🗑️ Kunde löschen"):
         users = load_users()
-        # Admin darf sich nicht selbst löschen
         user_list = [u for u in users.keys() if u != "admin"]
         
         if user_list:
