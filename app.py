@@ -16,24 +16,6 @@ st.set_page_config(page_title="SafeSite Drohne", page_icon="logo.jpg", layout="w
 # ----------------------------------------------------
 LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite-drohne/main/logo.jpg"
 # ----------------------------------------------------
-
-# HACK FÜR VOLLBILD & EIGENES APP-ICON (iOS/Android)
-st.markdown(f"""
-<style>
-    #MainMenu {{visibility: hidden;}}
-    footer {{visibility: hidden;}}
-    header {{visibility: hidden;}}
-</style>
-
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-
-<link rel="apple-touch-icon" sizes="180x180" href="{LOGO_URL_GITHUB}">
-<link rel="icon" type="image/png" href="{LOGO_URL_GITHUB}">
-""", unsafe_allow_html=True)
-# ----------------------------------------------------
 # 🔒 DATEI FÜR BENUTZERDATEN
 USER_DB_FILE = "users.json"
 
