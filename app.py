@@ -22,29 +22,32 @@ LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite
 # DESIGN & CSS ANPASSUNGEN
 st.markdown(f"""
 <style>
-    /* 1. Den Header NICHT verstecken, sondern transparent machen */
-    /* Damit bleibt der Menü-Pfeil (>) oben links sichtbar! */
-    [data-testid="stHeader"] {{
-        background-color: rgba(0,0,0,0);
+    /* 1. Header transparent machen, aber NICHT verstecken (wichtig für Handy!) */
+    header[data-testid="stHeader"] {{
+        background-color: transparent !important;
+        z-index: 1;
     }}
 
-    /* 2. Nur den störenden "Deploy"-Knopf verstecken */
-    .stAppDeployButton {{
-        display: none;
-    }}
-    
-    /* 3. Das "Männchen" oben rechts (Status) verstecken */
-    [data-testid="stStatusWidget"] {{
-        visibility: hidden;
-    }}
-
-    /* 4. Footer verstecken */
-    footer {{visibility: hidden;}}
-    
-    /* 5. Menü-Icon (Hamburger/Pfeil) Farbe anpassen (damit man es sieht) */
+    /* 2. Den Menü-Pfeil (oben links) explizit SICHTBAR machen und ORANGE färben */
+    /* Damit siehst du ihn auf jeden Fall */
     button[kind="header"] {{
-        color: #333333 !important; /* Dunkelgrau statt fast unsichtbar */
+        visibility: visible !important;
+        color: #FF6600 !important; /* Dein Orange */
+        font-weight: bold !important;
     }}
+    
+    /* Falls das Icon ein SVG ist, färben wir das Innere auch */
+    button[kind="header"] svg {{
+        fill: #FF6600 !important;
+    }}
+
+    /* 3. Störende Elemente oben rechts verstecken */
+    #MainMenu {{visibility: hidden;}} /* Die drei Punkte */
+    .stAppDeployButton {{display: none;}} /* Deploy Knopf */
+    [data-testid="stStatusWidget"] {{visibility: hidden;}} /* Männchen */
+    [data-testid="stDecoration"] {{visibility: hidden;}} /* Bunter Strich oben */
+    footer {{visibility: hidden;}} /* Made with Streamlit */
+
 </style>
 
 <meta name="apple-mobile-web-app-capable" content="yes">
