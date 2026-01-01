@@ -22,17 +22,29 @@ LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite
 # DESIGN & CSS ANPASSUNGEN
 st.markdown(f"""
 <style>
-    /* Menü-Button (Drei Punkte) oben rechts verstecken */
-    #MainMenu {{visibility: hidden;}}
+    /* 1. Den Header NICHT verstecken, sondern transparent machen */
+    /* Damit bleibt der Menü-Pfeil (>) oben links sichtbar! */
+    [data-testid="stHeader"] {{
+        background-color: rgba(0,0,0,0);
+    }}
+
+    /* 2. Nur den störenden "Deploy"-Knopf verstecken */
+    .stAppDeployButton {{
+        display: none;
+    }}
     
-    /* "Made with Streamlit" Footer verstecken */
+    /* 3. Das "Männchen" oben rechts (Status) verstecken */
+    [data-testid="stStatusWidget"] {{
+        visibility: hidden;
+    }}
+
+    /* 4. Footer verstecken */
     footer {{visibility: hidden;}}
     
-    /* Den störenden "Deploy"-Button verstecken */
-    .stAppDeployButton {{display: none;}}
-    
-    /* WICHTIG: Header NICHT verstecken, sonst ist das Menü auf dem Handy weg! */
-    /* header {{visibility: hidden;}} <--- Diese Zeile war das Problem */
+    /* 5. Menü-Icon (Hamburger/Pfeil) Farbe anpassen (damit man es sieht) */
+    button[kind="header"] {{
+        color: #333333 !important; /* Dunkelgrau statt fast unsichtbar */
+    }}
 </style>
 
 <meta name="apple-mobile-web-app-capable" content="yes">
