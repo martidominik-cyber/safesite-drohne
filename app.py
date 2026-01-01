@@ -22,47 +22,26 @@ LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite
 # DESIGN & CSS (DIE HOLZHAMMER-VARIANTE)
 st.markdown(f"""
 <style>
-    /* 1. Header ZWINGEND sichtbar machen und WEISS färben (zum Testen) */
-    header[data-testid="stHeader"] {{
-        visibility: visible !important;
-        background-color: #FFFFFF !important; /* Weiss, damit man ihn sicher sieht */
-        z-index: 9999 !important; /* Immer ganz oben */
-        height: 60px !important;
-    }}
-
-    /* 2. Den Menü-Knopf (Pfeil/Hamburger) ORANGE und GROSS machen */
-    button[kind="header"] {{
-        display: block !important;
-        visibility: visible !important;
-        color: #FF6600 !important;
-        opacity: 1 !important;
-        transform: scale(1.5); /* 50% grösser */
+    /* 1. Wir lassen den Header in Ruhe! (Damit der Knopf da bleibt) */
+    
+    /* 2. Nur den "Deploy"-Knopf verstecken */
+    .stAppDeployButton {{
+        display: none;
     }}
     
-    /* Das Innere des Icons (SVG) färben */
-    button[kind="header"] svg {{
-        fill: #FF6600 !important;
-    }}
+    /* 3. Footer verstecken */
+    footer {{visibility: hidden;}}
     
-    /* Auch den spezifischen "Sidebar zuklappen/aufklappen" Knopf treffen */
-    [data-testid="collapsedControl"] {{
-        display: block !important;
-        visibility: visible !important;
+    /* 4. Den Menü-Pfeil (Sidebar Toggle) einfärben, damit er auffällt */
+    [data-testid="stSidebarCollapsedControl"] {{
         color: #FF6600 !important;
     }}
-
-    /* 3. Nur den "Deploy"-Knopf und das "Männchen" verstecken */
-    .stAppDeployButton {{ display: none !important; }}
-    [data-testid="stStatusWidget"] {{ display: none !important; }}
-    #MainMenu {{ display: none !important; }}
-    footer {{ display: none !important; }}
-
+    
 </style>
 
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-status-bar-style" content="default"> 
 
 <link rel="apple-touch-icon" sizes="180x180" href="{LOGO_URL_GITHUB}">
 <link rel="icon" type="image/png" href="{LOGO_URL_GITHUB}">
