@@ -14,8 +14,7 @@ import urllib.parse
 # ==========================================
 st.set_page_config(page_title="SafeSite Drohne", page_icon="logo.jpg", layout="wide")
 # ----------------------------------------------------
-LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite-drohne/main/logo.jpg"
-# ----------------------------------------------------
+
 # 🔒 DATEI FÜR BENUTZERDATEN
 USER_DB_FILE = "users.json"
 
