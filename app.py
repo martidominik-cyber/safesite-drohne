@@ -22,31 +22,40 @@ LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite
 # DESIGN & CSS ANPASSUNGEN
 st.markdown(f"""
 <style>
-    /* 1. Header transparent machen, aber NICHT verstecken (wichtig für Handy!) */
+    /* 1. Header ZWINGEND sichtbar machen und WEISS färben (zum Testen) */
     header[data-testid="stHeader"] {{
-        background-color: transparent !important;
-        z-index: 1;
+        visibility: visible !important;
+        background-color: #FFFFFF !important; /* Weiss, damit man ihn sicher sieht */
+        z-index: 9999 !important; /* Immer ganz oben */
+        height: 60px !important;
     }}
 
-    /* 2. Den Menü-Pfeil (oben links) explizit SICHTBAR machen und ORANGE färben */
-    /* Damit siehst du ihn auf jeden Fall */
+    /* 2. Den Menü-Knopf (Pfeil/Hamburger) ORANGE und GROSS machen */
     button[kind="header"] {{
+        display: block !important;
         visibility: visible !important;
-        color: #FF6600 !important; /* Dein Orange */
-        font-weight: bold !important;
+        color: #FF6600 !important;
+        opacity: 1 !important;
+        transform: scale(1.5); /* 50% grösser */
     }}
     
-    /* Falls das Icon ein SVG ist, färben wir das Innere auch */
+    /* Das Innere des Icons (SVG) färben */
     button[kind="header"] svg {{
         fill: #FF6600 !important;
     }}
+    
+    /* Auch den spezifischen "Sidebar zuklappen/aufklappen" Knopf treffen */
+    [data-testid="collapsedControl"] {{
+        display: block !important;
+        visibility: visible !important;
+        color: #FF6600 !important;
+    }}
 
-    /* 3. Störende Elemente oben rechts verstecken */
-    #MainMenu {{visibility: hidden;}} /* Die drei Punkte */
-    .stAppDeployButton {{display: none;}} /* Deploy Knopf */
-    [data-testid="stStatusWidget"] {{visibility: hidden;}} /* Männchen */
-    [data-testid="stDecoration"] {{visibility: hidden;}} /* Bunter Strich oben */
-    footer {{visibility: hidden;}} /* Made with Streamlit */
+    /* 3. Nur den "Deploy"-Knopf und das "Männchen" verstecken */
+    .stAppDeployButton {{ display: none !important; }}
+    [data-testid="stStatusWidget"] {{ display: none !important; }}
+    #MainMenu {{ display: none !important; }}
+    footer {{ display: none !important; }}
 
 </style>
 
