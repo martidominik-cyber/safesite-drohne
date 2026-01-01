@@ -19,7 +19,7 @@ st.set_page_config(page_title="SafeSite Drohne", page_icon="logo.jpg", layout="w
 LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite-drohne/main/logo.jpg"
 # ----------------------------------------------------
 
-# DESIGN & CSS ANPASSUNGEN
+# DESIGN & CSS (DIE HOLZHAMMER-VARIANTE)
 st.markdown(f"""
 <style>
     /* 1. Header ZWINGEND sichtbar machen und WEISS färben (zum Testen) */
@@ -344,7 +344,7 @@ with st.sidebar:
             st.session_state.video_path = None
             st.rerun()
             
-    st.caption("SSD SafeSite App v15.0")
+    st.caption("SSD SafeSite App v16.0")
 
 # ==========================================
 # HAUPTBEREICH: TITELBILD
