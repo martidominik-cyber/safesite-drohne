@@ -111,7 +111,7 @@ class PDF(FPDF):
 def create_pdf(data, m_type, m_files):
     pdf = PDF(); pdf.add_page()
     pdf.set_font("Arial", '', 10); pdf.set_text_color(0,0,0)
-    pdf.cell(0, 5, f"Datum: {date.today().strftime('%d.%m.%Y')} | KI-Analyse: Gemini Flash", ln=True)
+    pdf.cell(0, 5, f"Datum: {date.today().strftime('%d.%m.%Y')} | KI-Analyse: Gemini 2.5 Flash", ln=True)
     pdf.ln(5)
     
     for i, item in enumerate(data):
@@ -268,11 +268,17 @@ else:
                     with cols[i%3]: st.image(f, caption=f"Bild {i+1}")
 
             if not st.session_state.data:
-                with st.spinner("Suche Mängel (Flash Modell)..."):
+                with st.spinner("Suche Mängel (Modell: Gemini 2.5 Flash)..."):
                     try:
                         genai.configure(api_key=API_KEY)
-                        # HIER IST DER FIX: Wir nehmen wieder das funktionierende Modell
-                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        
+                        # --- HIER IST DEIN GEWÜNSCHTER FIX ---
+                        try:
+                            # Wir versuchen ERST dein "Wundermodell"
+                            model = genai.GenerativeModel('gemini-2.5-flash')
+                        except:
+                            # Falls Google es heute nicht kennt, nehmen wir den stabilen Klassiker
+                            model = genai.GenerativeModel('gemini-pro')
                         
                         prompt = """
                         Du bist Schweizer Bau-Sicherheitsexperte (SiBe).
@@ -287,7 +293,7 @@ else:
                         
                         if st.session_state.type == "video":
                             f = genai.upload_file(st.session_state.files[0])
-                            # Warteschleife (Fix für Hänger)
+                            # Warteschleife (wichtig!)
                             while f.state.name == "PROCESSING":
                                 time.sleep(2)
                                 f = genai.get_file(f.name)
