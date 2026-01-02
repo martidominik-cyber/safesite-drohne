@@ -457,7 +457,7 @@ elif selected_mode == "🛡️ SafeSite-Check":
                         prompt = """
                         Du bist ein Schweizer Bau-Sicherheitsexperte (SiBe).
                         Analysiere das Video STRENG nach **Bauarbeitenverordnung (BauAV)** und SUVA-Regeln.
-                        Finde 3 Mängel.
+                        Identifiziere ALLE sichtbaren Sicherheitsmängel (mindestens 1, maximal 10)
                         Gib das Ergebnis NUR als JSON-Liste zurück.
                         Format:
                         [{"kategorie": "...", "prioritaet": "Hoch", "mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 10}]
