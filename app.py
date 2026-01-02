@@ -23,29 +23,20 @@ except ImportError:
 st.set_page_config(page_title="SafeSite Drohne", page_icon="logo.jpg", layout="wide", initial_sidebar_state="expanded")
 
 # --- HIER DEINEN GITHUB-NAMEN EINTRAGEN ---
-LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite-drohne/main/logo.jpg?v=1"
+LOGO_URL_GITHUB = "https://raw.githubusercontent.com/DEIN_BENUTZERNAME/safesite-drohne/main/logo.jpg?v=1"
 # ------------------------------------------
 
-# CSS: Designanpassungen für Dark Mode & Orange Akzente
+# CSS
 st.markdown(f"""
 <style>
     .stAppDeployButton {{display: none;}}
     footer {{visibility: hidden;}}
-    
-    /* Hauptfarbe Orange definieren */
     :root {{ --primary: #FF6600; }}
-    
-    /* Buttons in Orange */
     .stButton > button {{
         background-color: #FF6600 !important;
         color: white !important;
         border: none;
         font-weight: bold;
-    }}
-    
-    /* Aktives Menü-Item Orange hervorheben */
-    div[data-testid="stRadio"] > label > div[data-checked="true"] {{
-        background-color: #FF6600 !important;
     }}
 </style>
 <link rel="apple-touch-icon" href="{LOGO_URL_GITHUB}">
@@ -61,9 +52,35 @@ except:
 # DATEIEN
 LOGO_FILE = "logo.jpg"
 TITELBILD_FILE = "titelbild.png"
+USER_DB_FILE = "users.json"
 
 # ==========================================
-# 1. FUNKTIONEN
+# 1. USER MANAGEMENT (Wieder da!)
+# ==========================================
+def load_users():
+    if not os.path.exists(USER_DB_FILE):
+        # Standard Admin erstellen, falls Datei fehlt
+        default_db = {"admin": "1234"}
+        with open(USER_DB_FILE, "w") as f: json.dump(default_db, f)
+        return default_db
+    try:
+        with open(USER_DB_FILE, "r") as f: return json.load(f)
+    except:
+        return {"admin": "1234"}
+
+def save_user(username, password):
+    users = load_users()
+    users[username] = password
+    with open(USER_DB_FILE, "w") as f: json.dump(users, f)
+
+def delete_user(username):
+    users = load_users()
+    if username in users:
+        del users[username]
+        with open(USER_DB_FILE, "w") as f: json.dump(users, f)
+
+# ==========================================
+# 2. HILFSFUNKTIONEN
 # ==========================================
 def clean_json(text):
     text = text.strip()
@@ -154,195 +171,239 @@ def create_word(data, m_type, m_files):
     doc.save(out)
     return out
 
-# STATE
+# STATE INITIALISIERUNG
 if 'step' not in st.session_state: st.session_state.step = 1
 if 'data' not in st.session_state: st.session_state.data = []
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'current_user' not in st.session_state: st.session_state.current_user = None
 
 # ==========================================
-# 2. SIDEBAR
+# 3. SIDEBAR MENÜ
 # ==========================================
 with st.sidebar:
     if os.path.exists(LOGO_FILE):
         st.image(LOGO_FILE, use_container_width=True)
     
+    if st.session_state.logged_in:
+        st.success(f"👤 {st.session_state.current_user}")
+        if st.button("🔓 Logout"):
+            st.session_state.logged_in = False
+            st.session_state.current_user = None
+            st.rerun()
+    
     st.title("Menü")
-    menu = st.radio("Navigation", [
-        "🏠 Home", 
-        "🛡️ SafeSite-Check", 
-        "📚 BauAV Nachschlagewerk", 
-        "📋 8 Lebenswichtige Regeln"
-    ])
+    
+    # Menüoptionen definieren
+    options = ["🏠 Home", "🛡️ SafeSite-Check", "📚 BauAV Nachschlagewerk", "📋 8 Lebenswichtige Regeln"]
+    
+    # Admin bekommt Extra-Menü
+    if st.session_state.logged_in and st.session_state.current_user == "admin":
+        options.append("👥 Kundenverwaltung")
+        
+    menu = st.radio("Navigation", options)
     
     st.divider()
-    if menu == "🛡️ SafeSite-Check":
-        if st.button("🔄 Reset"):
+    if menu == "🛡️ SafeSite-Check" and st.session_state.logged_in:
+        if st.button("🔄 Reset Auftrag"):
             st.session_state.step = 1
             st.session_state.data = []
             st.rerun()
 
 # ==========================================
-# 3. HAUPTBEREICH
+# 4. HAUPTBEREICH & LOGIN LOGIK
 # ==========================================
 if os.path.exists(TITELBILD_FILE):
     st.image(TITELBILD_FILE, use_container_width=True)
 st.title("SafeSite Drohne")
 
-# --- HOME ---
-if menu == "🏠 Home":
-    st.info("Willkommen zurück. Wählen Sie links eine Funktion.")
-    col1, col2, col3 = st.columns(3)
-    with col1: st.link_button("📸 Instagram", "https://instagram.com")
-    with col2: st.link_button("👍 Facebook", "https://facebook.com")
-    with col3: st.link_button("🌍 Webseite", "https://safesitedrohne.ch")
+# --- LOGIN SCREEN (Wenn nicht eingeloggt) ---
+if not st.session_state.logged_in:
+    st.info("Bitte anmelden, um fortzufahren.")
+    col1, col2 = st.columns([1,2])
+    with col1:
+        u = st.text_input("Benutzername")
+        p = st.text_input("Passwort", type="password")
+        if st.button("Einloggen"):
+            users = load_users()
+            if u in users and users[u] == p:
+                st.session_state.logged_in = True
+                st.session_state.current_user = u
+                st.rerun()
+            else:
+                st.error("Benutzername oder Passwort falsch.")
 
-# --- CHECK (PRO MODELL) ---
-elif menu == "🛡️ SafeSite-Check":
-    if st.session_state.step == 1:
-        st.subheader("Neuer Auftrag (Pro-Modell)")
-        if not WORD_AVAILABLE: st.warning("Word-Export inaktiv (Neustart erforderlich)")
+else:
+    # --- EINGELOGGT: PROGRAMM START ---
 
-        mode = st.radio("Upload:", ["📹 Video", "📸 Fotos"], horizontal=True)
-        files = []
-        
-        if mode == "📹 Video":
-            vf = st.file_uploader("Video (mp4)", type=["mp4"])
-            if vf and st.button("Analyse starten 🚀"):
-                with st.spinner("Lade Video..."):
-                    t = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4'); t.write(vf.read()); files.append(t.name); t.close()
-                    st.session_state.type = "video"; st.session_state.files = files; st.session_state.step = 2; st.rerun()
-        else:
-            pf = st.file_uploader("Fotos", type=["jpg","png"], accept_multiple_files=True)
-            if pf and st.button("Analyse starten 🚀"):
-                with st.spinner("Lade Fotos..."):
-                    for f in pf:
-                        t = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg'); t.write(f.read()); files.append(t.name); t.close()
-                    st.session_state.type = "images"; st.session_state.files = files; st.session_state.step = 2; st.rerun()
+    # 1. HOME
+    if menu == "🏠 Home":
+        st.info(f"Willkommen zurück, {st.session_state.current_user}!")
+        st.write("Starten Sie einen neuen Auftrag über das Menü links.")
+        col1, col2, col3 = st.columns(3)
+        with col1: st.link_button("📸 Instagram", "https://instagram.com")
+        with col2: st.link_button("👍 Facebook", "https://facebook.com")
+        with col3: st.link_button("🌍 Webseite", "https://safesitedrohne.ch")
 
-    elif st.session_state.step == 2:
-        st.subheader("🕵️‍♂️ Gemini 1.5 Pro Analyse")
-        if st.session_state.type == "video": st.video(st.session_state.files[0])
-        else:
-            cols = st.columns(3)
-            for i,f in enumerate(st.session_state.files): 
-                with cols[i%3]: st.image(f, caption=f"Bild {i+1}")
+    # 2. CHECK (DIE HAUPTFUNKTION)
+    elif menu == "🛡️ SafeSite-Check":
+        if st.session_state.step == 1:
+            st.subheader("Neuer Auftrag (Pro-Modell)")
+            if not WORD_AVAILABLE: st.warning("Word-Export inaktiv (Neustart erforderlich)")
 
-        if not st.session_state.data:
-            with st.spinner("Analysiere Baustelle KRITISCH... (kann 30-60s dauern)"):
-                try:
-                    genai.configure(api_key=API_KEY)
-                    model = genai.GenerativeModel('gemini-1.5-pro')
-                    
-                    prompt = """
-                    Du bist ein strenger Schweizer Bau-Sicherheitsprüfer (SiBe).
-                    Analysiere die Bilder/Video KRITISCH nach BauAV und SUVA.
-                    
-                    WICHTIG:
-                    1. Suche gezielt nach LEBENSGEFAHR:
-                       - Gräben ohne Spriessung (>1.5m)? Bagger im Gefahrenbereich?
-                       - Fehlende Absturzsicherung?
-                       - Armierungseisen ohne Kappen?
-                    2. Liste ALLE Mängel auf (kein Limit).
-                    3. Sei konkret und professionell.
-                    
-                    Antworte NUR als JSON Liste:
-                    [{"mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 0, "bild_index": 0}]
-                    """
-                    
-                    if st.session_state.type == "video":
-                        f = genai.upload_file(st.session_state.files[0])
-                        # Warten bis Video ready ist
-                        while f.state.name == "PROCESSING":
-                            time.sleep(2)
-                            f = genai.get_file(f.name)
+            mode = st.radio("Upload:", ["📹 Video", "📸 Fotos"], horizontal=True)
+            files = []
+            
+            if mode == "📹 Video":
+                vf = st.file_uploader("Video (mp4)", type=["mp4"])
+                if vf and st.button("Analyse starten 🚀"):
+                    with st.spinner("Lade Video..."):
+                        t = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4'); t.write(vf.read()); files.append(t.name); t.close()
+                        st.session_state.type = "video"; st.session_state.files = files; st.session_state.step = 2; st.rerun()
+            else:
+                pf = st.file_uploader("Fotos", type=["jpg","png"], accept_multiple_files=True)
+                if pf and st.button("Analyse starten 🚀"):
+                    with st.spinner("Lade Fotos..."):
+                        for f in pf:
+                            t = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg'); t.write(f.read()); files.append(t.name); t.close()
+                        st.session_state.type = "images"; st.session_state.files = files; st.session_state.step = 2; st.rerun()
+
+        elif st.session_state.step == 2:
+            st.subheader("🕵️‍♂️ Gemini 1.5 Pro Analyse")
+            if st.session_state.type == "video": st.video(st.session_state.files[0])
+            else:
+                cols = st.columns(3)
+                for i,f in enumerate(st.session_state.files): 
+                    with cols[i%3]: st.image(f, caption=f"Bild {i+1}")
+
+            if not st.session_state.data:
+                with st.spinner("Analysiere Baustelle KRITISCH... (kann 30-60s dauern)"):
+                    try:
+                        genai.configure(api_key=API_KEY)
+                        model = genai.GenerativeModel('gemini-1.5-pro')
                         
-                        res = model.generate_content([f, prompt], generation_config={"response_mime_type": "application/json"})
-                    else:
-                        imgs = [Image.open(p) for p in st.session_state.files]
-                        res = model.generate_content([prompt] + imgs, generation_config={"response_mime_type": "application/json"})
-                    
-                    st.session_state.data = json.loads(clean_json(res.text))
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Fehler: {e}")
-                    if st.button("Nochmal"): st.rerun()
-
-        if st.session_state.data:
-            st.success(f"{len(st.session_state.data)} Mängel gefunden.")
-            with st.form("res"):
-                confirmed = []
-                for i, item in enumerate(st.session_state.data):
-                    c1, c2 = st.columns([1,3])
-                    with c1:
+                        prompt = """
+                        Du bist ein strenger Schweizer Bau-Sicherheitsprüfer (SiBe).
+                        Analysiere die Bilder/Video KRITISCH nach BauAV und SUVA.
+                        WICHTIG:
+                        1. Suche gezielt nach LEBENSGEFAHR (Gräben, Absturz, PSA).
+                        2. Liste ALLE Mängel auf (kein Limit).
+                        3. Sei konkret und professionell.
+                        Antworte NUR als JSON Liste:
+                        [{"mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 0, "bild_index": 0}]
+                        """
+                        
                         if st.session_state.type == "video":
-                            frm = extract_frame(st.session_state.files[0], item.get('zeitstempel_sekunden', 0))
-                            if frm is not None: st.image(frm)
+                            f = genai.upload_file(st.session_state.files[0])
+                            # Warten fix
+                            while f.state.name == "PROCESSING":
+                                time.sleep(2)
+                                f = genai.get_file(f.name)
+                            res = model.generate_content([f, prompt], generation_config={"response_mime_type": "application/json"})
                         else:
-                            idx = item.get('bild_index', 0)
-                            if idx < len(st.session_state.files): st.image(st.session_state.files[idx])
-                    with c2:
-                        # Überschrift Orange machen
-                        st.markdown(f"#### :orange[{i+1}. {item['mangel']}]")
-                        st.caption(item.get('verstoss'))
-                        st.write(item.get('massnahme'))
-                        if st.checkbox("Aufnehmen", True, key=str(i)): confirmed.append(item)
-                    st.divider()
-                if st.form_submit_button("Berichte erstellen"):
-                    st.session_state.final = confirmed
-                    st.session_state.step = 3
+                            imgs = [Image.open(p) for p in st.session_state.files]
+                            res = model.generate_content([prompt] + imgs, generation_config={"response_mime_type": "application/json"})
+                        
+                        st.session_state.data = json.loads(clean_json(res.text))
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Fehler: {e}")
+                        if st.button("Nochmal"): st.rerun()
+
+            if st.session_state.data:
+                st.success(f"{len(st.session_state.data)} Mängel gefunden.")
+                with st.form("res"):
+                    confirmed = []
+                    for i, item in enumerate(st.session_state.data):
+                        c1, c2 = st.columns([1,3])
+                        with c1:
+                            if st.session_state.type == "video":
+                                frm = extract_frame(st.session_state.files[0], item.get('zeitstempel_sekunden', 0))
+                                if frm is not None: st.image(frm)
+                            else:
+                                idx = item.get('bild_index', 0)
+                                if idx < len(st.session_state.files): st.image(st.session_state.files[idx])
+                        with c2:
+                            st.markdown(f"#### :orange[{i+1}. {item['mangel']}]")
+                            st.caption(item.get('verstoss'))
+                            st.write(item.get('massnahme'))
+                            if st.checkbox("Aufnehmen", True, key=str(i)): confirmed.append(item)
+                        st.divider()
+                    if st.form_submit_button("Berichte erstellen"):
+                        st.session_state.final = confirmed
+                        st.session_state.step = 3
+                        st.rerun()
+
+        elif st.session_state.step == 3:
+            st.subheader("Fertig!")
+            pdf_file = create_pdf(st.session_state.final, st.session_state.type, st.session_state.files)
+            col1, col2 = st.columns(2)
+            with col1:
+                with open(pdf_file, "rb") as f: st.download_button("📥 PDF", f, "SSD_Bericht.pdf")
+            with col2:
+                if WORD_AVAILABLE:
+                    word_file = create_word(st.session_state.final, st.session_state.type, st.session_state.files)
+                    with open(word_file, "rb") as f: st.download_button("📝 Word", f, "SSD_Bericht.docx")
+            
+            if st.button("Neuer Auftrag"):
+                st.session_state.step = 1; st.session_state.data = []; st.rerun()
+
+    # 3. KUNDENVERWALTUNG (NUR ADMIN)
+    elif menu == "👥 Kundenverwaltung":
+        st.subheader("Benutzer verwalten")
+        users = load_users()
+        
+        # Neuen User anlegen
+        with st.form("new_user"):
+            st.write("Neuen Kunden anlegen:")
+            nu = st.text_input("Name")
+            np = st.text_input("Passwort")
+            if st.form_submit_button("Speichern"):
+                if nu and np:
+                    save_user(nu, np)
+                    st.success(f"User {nu} angelegt!")
+                    st.rerun()
+        
+        st.divider()
+        st.write("Aktuelle Benutzer:")
+        for user, pw in users.items():
+            c1, c2, c3 = st.columns([2,2,1])
+            c1.write(f"👤 **{user}**")
+            c2.text("******") # Passwort verstecken
+            if user != "admin":
+                if c3.button("Löschen", key=f"del_{user}"):
+                    delete_user(user)
                     st.rerun()
 
-    elif st.session_state.step == 3:
-        st.subheader("Fertig!")
-        pdf_file = create_pdf(st.session_state.final, st.session_state.type, st.session_state.files)
-        col1, col2 = st.columns(2)
-        with col1:
-            with open(pdf_file, "rb") as f: st.download_button("📥 PDF", f, "SSD_Bericht.pdf")
-        with col2:
-            if WORD_AVAILABLE:
-                word_file = create_word(st.session_state.final, st.session_state.type, st.session_state.files)
-                with open(word_file, "rb") as f: st.download_button("📝 Word", f, "SSD_Bericht.docx")
-        
-        if st.button("Neuer Auftrag"):
-            st.session_state.step = 1; st.session_state.data = []; st.rerun()
+    # 4. BAUAV
+    elif menu == "📚 BauAV Nachschlagewerk":
+        st.subheader("📚 BauAV Datenbank")
+        def bauav_card(titel, art, inhalt):
+            with st.container(border=True):
+                st.markdown(f"#### :orange[{titel}] <span style='color:grey; font-size:0.8em'>({art})</span>", unsafe_allow_html=True)
+                st.write(inhalt)
 
-# --- BAUAV (DESIGN FIX: JETZT PASSEND ZUM DARK MODE) ---
-elif menu == "📚 BauAV Nachschlagewerk":
-    st.subheader("📚 BauAV Datenbank")
-    
-    # Neue Funktion nutzt jetzt native Streamlit Container -> Passt sich Dark Mode an!
-    def bauav_card(titel, art, inhalt):
-        with st.container(border=True):
-            # Titel in Orange, Art in Grau
-            st.markdown(f"#### :orange[{titel}] <span style='color:grey; font-size:0.8em'>({art})</span>", unsafe_allow_html=True)
-            st.write(inhalt)
+        bauav_card("Absturzsicherung", "Art. 18 ff.", "Ab 2.00m Absturzhöhe zwingend Seitenschutz.")
+        bauav_card("Gräben", "Art. 68 ff.", "Ab 1.50m Tiefe spriessen.")
+        bauav_card("PSA", "Art. 6", "Helmtragepflicht.")
 
-    bauav_card("Absturzsicherung", "Art. 18 ff.", "Ab 2.00m Absturzhöhe zwingend Seitenschutz (Holm, Zwischenholm, Bordbrett).")
-    bauav_card("Gräben & Baugruben", "Art. 68 ff.", "Ab 1.50m Tiefe müssen Wände geböscht oder verspriesst werden.")
-    bauav_card("Gerüste", "Art. 47 ff.", "Tägliche Sichtkontrolle. Beläge dicht verlegt. Ab 3m Fassadengerüst.")
-    bauav_card("PSA", "Art. 6", "Helmtragepflicht und Warnkleidung im Baustellenbereich.")
-
-# --- 8 REGELN ---
-elif menu == "📋 8 Lebenswichtige Regeln":
-    st.subheader("🇨🇭 Die 8 lebenswichtigen Regeln")
-    
-    regeln = [
-        {"t": "Absturzkanten sichern", "txt": "Absturzhöhe > 2m sichern.", "img": "regel_1.png"},
-        {"t": "Bodenöffnungen verschliessen", "txt": "Durchbruchsicher abdecken.", "img": "regel_2.png"},
-        {"t": "Lasten anschlagen", "txt": "Kranlasten sicher anschlagen.", "img": "regel_3.png"},
-        {"t": "Fassadengerüst", "txt": "Ab 3m Höhe Gerüst nutzen.", "img": "regel_4.png"},
-        {"t": "Gerüstkontrolle", "txt": "Täglich prüfen. Keine Änderungen.", "img": "regel_5.png"},
-        {"t": "Sichere Zugänge", "txt": "Treppen und Leitern sichern.", "img": "regel_6.png"},
-        {"t": "PSA tragen", "txt": "Helm, Schuhe, Weste.", "img": "regel_7.png"},
-        {"t": "Gräben sichern", "txt": "Ab 1.50m Tiefe spriessen.", "img": "regel_8.png"},
-    ]
-    
-    for r in regeln:
-        with st.container(border=True):
-            c1, c2 = st.columns([1, 3])
-            with c1:
-                if os.path.exists(r["img"]): st.image(r["img"])
-                else: st.info("Bild fehlt")
-            with c2:
-                # Titel in Orange
-                st.markdown(f"#### :orange[{r['t']}]")
-                st.write(r["txt"])
+    # 5. REGELN
+    elif menu == "📋 8 Lebenswichtige Regeln":
+        st.subheader("🇨🇭 SUVA Regeln")
+        regeln = [
+            {"t": "Absturzkanten", "txt": "Ab 2m sichern.", "img": "regel_1.png"},
+            {"t": "Öffnungen", "txt": "Abdecken.", "img": "regel_2.png"},
+            {"t": "Lasten", "txt": "Sicher anschlagen.", "img": "regel_3.png"},
+            {"t": "Gerüste", "txt": "Täglich prüfen.", "img": "regel_4.png"},
+            {"t": "Gerüstzugang", "txt": "Treppen nutzen.", "img": "regel_5.png"},
+            {"t": "Zugänge", "txt": "Sichern.", "img": "regel_6.png"},
+            {"t": "PSA", "txt": "Helm tragen.", "img": "regel_7.png"},
+            {"t": "Gräben", "txt": "Spriessen.", "img": "regel_8.png"},
+        ]
+        for r in regeln:
+            with st.container(border=True):
+                c1, c2 = st.columns([1, 3])
+                with c1:
+                    if os.path.exists(r["img"]): st.image(r["img"])
+                with c2:
+                    st.markdown(f"#### :orange[{r['t']}]")
+                    st.write(r["txt"])
