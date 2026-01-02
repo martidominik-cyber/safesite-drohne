@@ -8,8 +8,13 @@ from fpdf import FPDF
 import time
 from datetime import date
 from PIL import Image
-from docx import Document
-from docx.shared import Inches
+# Falls python-docx fehlt, fangen wir den Fehler ab, damit die App nicht crasht
+try:
+    from docx import Document
+    from docx.shared import Inches
+    WORD_AVAILABLE = True
+except ImportError:
+    WORD_AVAILABLE = False
 
 # ==========================================
 # 0. KONFIGURATION
@@ -68,9 +73,9 @@ def extract_frame(video_path, timestamp):
 class PDF(FPDF):
     def header(self):
         self.set_font('Arial', 'B', 16)
-        self.set_text_color(255, 102, 0)
-        self.cell(0, 10, 'Sicherheitsbericht', ln=True)
-        self.ln(10)
+        self.set_text_color(255, 102, 0) # Orange
+        self.cell(0, 10, 'Sicherheitsbericht (Pro-Analyse)', ln=True)
+        self.ln(5)
 
 def create_pdf(data, m_type, m_files):
     pdf = PDF(); pdf.add_page()
@@ -78,55 +83,77 @@ def create_pdf(data, m_type, m_files):
     pdf.cell(0, 10, f"Gefundene Mängel: {len(data)}", ln=True); pdf.ln(5)
     
     for i, item in enumerate(data):
-        if pdf.get_y() > 230: pdf.add_page()
-        pdf.set_font("Arial", 'B', 11); pdf.set_text_color(200, 0, 0)
-        pdf.cell(0, 8, f"{i+1}. {item.get('mangel', 'Mangel')}", ln=True)
-        pdf.set_font("Arial", '', 10); pdf.set_text_color(0,0,0)
-        pdf.multi_cell(0, 5, f"Verstoss: {item.get('verstoss')}\nMassnahme: {item.get('massnahme')}")
-        pdf.ln(2)
+        if pdf.get_y() > 220: pdf.add_page()
         
+        # Titel Rot und Fett
+        pdf.set_font("Arial", 'B', 12); pdf.set_text_color(204, 0, 0)
+        titel = f"{i+1}. {item.get('kategorie', 'Mangel')} ({item.get('prioritaet', 'Mittel')})"
+        pdf.cell(0, 8, titel.encode('latin-1', 'replace').decode('latin-1'), ln=True)
+        
+        # Text Schwarz
+        pdf.set_font("Arial", '', 10); pdf.set_text_color(0,0,0)
+        
+        # Mangel
+        pdf.set_font("Arial", 'B', 10); pdf.write(5, "Situation: ")
+        pdf.set_font("Arial", '', 10); pdf.write(5, item.get('mangel', '-').encode('latin-1', 'replace').decode('latin-1')); pdf.ln(6)
+        
+        # Verstoss
+        pdf.set_font("Arial", 'B', 10); pdf.write(5, "Verstoss: ")
+        pdf.set_font("Arial", '', 10); pdf.write(5, item.get('verstoss', '-').encode('latin-1', 'replace').decode('latin-1')); pdf.ln(6)
+        
+        # Massnahme
+        pdf.set_font("Arial", 'B', 10); pdf.write(5, "Massnahme: ")
+        pdf.set_font("Arial", '', 10); pdf.write(5, item.get('massnahme', '-').encode('latin-1', 'replace').decode('latin-1')); pdf.ln(8)
+        
+        # Bild
         img_path = None
+        temp_created = False
         if m_type == "video":
             frame = extract_frame(m_files[0], item.get('zeitstempel_sekunden', 0))
             if frame is not None:
                 img_path = f"temp_{i}.jpg"
                 cv2.imwrite(img_path, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+                temp_created = True
         elif m_type == "images":
             idx = item.get('bild_index', 0)
             if idx < len(m_files): img_path = m_files[idx]
             
         if img_path:
-            try: pdf.image(img_path, x=15, w=120)
+            try: pdf.image(img_path, x=20, w=120)
             except: pass
-            pdf.ln(5)
-            if m_type == "video" and img_path.startswith("temp"): os.remove(img_path)
+            pdf.ln(10)
+            if temp_created and os.path.exists(img_path): os.remove(img_path)
             
     out = "Bericht.pdf"
     pdf.output(out)
     return out
 
-# --- WORD GENERATOR (NEU) ---
+# --- WORD GENERATOR ---
 def create_word(data, m_type, m_files):
+    if not WORD_AVAILABLE: return None
     doc = Document()
     doc.add_heading('Sicherheitsbericht SafeSite', 0)
-    doc.add_paragraph(f"Datum: {date.today().strftime('%d.%m.%Y')}")
+    doc.add_paragraph(f"Datum: {date.today().strftime('%d.%m.%Y')} | KI-Modell: Gemini 1.5 Pro")
     
     for i, item in enumerate(data):
-        doc.add_heading(f"{i+1}. {item.get('mangel', 'Mangel')}", level=1)
+        doc.add_heading(f"{i+1}. {item.get('kategorie', 'Mangel')}", level=1)
         
         p = doc.add_paragraph()
-        runner = p.add_run("Verstoss: ")
-        runner.bold = True
+        p.add_run("Priorität: ").bold = True
+        p.add_run(f"{item.get('prioritaet')}\n")
+        
+        p.add_run("Situation/Mangel: ").bold = True
+        p.add_run(f"{item.get('mangel')}\n")
+        
+        p.add_run("Verstoss: ").bold = True
         p.add_run(f"{item.get('verstoss')}\n")
         
-        runner = p.add_run("Massnahme: ")
-        runner.bold = True
+        p.add_run("Massnahme: ").bold = True
         p.add_run(f"{item.get('massnahme')}")
         
-        # Bild einfügen
+        # Bild
         img_path = None
         temp_created = False
-        
         if m_type == "video":
             frame = extract_frame(m_files[0], item.get('zeitstempel_sekunden', 0))
             if frame is not None:
@@ -138,12 +165,9 @@ def create_word(data, m_type, m_files):
             if idx < len(m_files): img_path = m_files[idx]
             
         if img_path:
-            try:
-                doc.add_picture(img_path, width=Inches(5))
+            try: doc.add_picture(img_path, width=Inches(5))
             except: pass
-            
-            if temp_created and os.path.exists(img_path):
-                os.remove(img_path)
+            if temp_created and os.path.exists(img_path): os.remove(img_path)
 
     out = "Bericht.docx"
     doc.save(out)
@@ -176,51 +200,61 @@ if not st.session_state.logged_in:
 else:
     # HAUPT APP
     if st.session_state.app_step == 'screen_a':
-        st.subheader("Neuer Auftrag")
+        st.subheader("Neuer Auftrag (Pro-Modell)")
+        if not WORD_AVAILABLE:
+            st.warning("⚠️ Word-Export nicht verfügbar. Bitte 'python-docx' in requirements.txt ergänzen!")
         
         mode = st.radio("Quelle:", ["📹 Video", "📸 Fotos"], horizontal=True)
         files = []
         
         if mode == "📹 Video":
-            vf = st.file_uploader("Video", type=["mp4"])
+            vf = st.file_uploader("Video (mp4)", type=["mp4"])
             if vf and st.button("Analyse starten"):
                 t = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4'); t.write(vf.read()); files.append(t.name); t.close()
                 st.session_state.m_type = "video"; st.session_state.m_files = files; st.session_state.app_step = 'screen_b'; st.rerun()
         else:
-            pf = st.file_uploader("Fotos", type=["jpg", "png"], accept_multiple_files=True)
+            pf = st.file_uploader("Fotos (jpg, png)", type=["jpg", "png"], accept_multiple_files=True)
             if pf and st.button("Analyse starten"):
                 for f in pf:
                     t = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg'); t.write(f.read()); files.append(t.name); t.close()
                 st.session_state.m_type = "images"; st.session_state.m_files = files; st.session_state.app_step = 'screen_b'; st.rerun()
 
     elif st.session_state.app_step == 'screen_b':
-        st.subheader("🕵️‍♂️ KI scannt Baustelle...")
+        st.subheader("🕵️‍♂️ Gemini 1.5 Pro analysiert...")
         
-        if st.session_state.m_type == "video": 
-            st.video(st.session_state.m_files[0])
+        if st.session_state.m_type == "video": st.video(st.session_state.m_files[0])
         else: 
+            # --- HIER WAR DER FEHLER (jetzt korrigiert) ---
             cols = st.columns(3)
             for i, f in enumerate(st.session_state.m_files):
                 with cols[i % 3]:
                     st.image(f, caption=f"Bild {i+1}")
+            # ----------------------------------------------
 
         if not st.session_state.analysis_data:
-            with st.spinner("Analyse läuft..."):
+            with st.spinner("Ich denke nach... (Das Pro-Modell braucht ca. 20-30 Sekunden)"):
                 try:
                     genai.configure(api_key=API_KEY)
-                    model = genai.GenerativeModel('gemini-2.5-flash')
                     
+                    # WIR NUTZEN JETZT WIEDER DAS STARKE MODELL
+                    model = genai.GenerativeModel('gemini-1.5-pro')
+                    
+                    # PROMPT (Optimiert auf Basis deines Feedbacks)
                     prompt = """
-                    Du bist Schweizer Bau-Sicherheitsexperte (SiBe).
-                    Analysiere die Aufnahmen streng nach BauAV/SUVA.
+                    Du bist ein strenger Schweizer Bau-Sicherheitsprüfer (SiBe).
+                    Deine Aufgabe: Analysiere diese Aufnahmen KRITISCH nach BauAV und SUVA.
                     
-                    WICHTIG:
-                    - Finde ALLE sichtbaren Mängel (begrenze dich NICHT auf 3).
-                    - Liste so viele wie möglich auf.
-                    - Achte auf: Absturzsicherung, PSA (Helme), Gräben, Gerüste.
+                    WICHTIG - Suche gezielt nach LEBENSGEFAHR:
+                    1. GRÄBEN: Steht ein Bagger im Graben? Sind Wände senkrecht (>1.5m) ohne Spriessung? (BauAV Art 19/20)
+                    2. ARMIERUNG: Ragen Eisen heraus ohne Schutzkappen? (Aufspiessgefahr)
+                    3. ABSTURZ: Fehlen Geländer an Kanten, Treppen oder Grabenübergängen? (BauAV Art 10/14/18)
+                    4. ORDNUNG: Liegt Material chaotisch auf Wegen?
                     
-                    Gib das Ergebnis NUR als JSON Array zurück:
-                    [{"kategorie": "...", "prioritaet": "Hoch/Mittel", "mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 0, "bild_index": 0}]
+                    Sei sehr konkret. Schreibe z.B. "Bagger im ungesicherten Graben" statt nur "Sicherheitsmangel".
+                    Finde SO VIELE Mängel wie möglich (keine Begrenzung).
+                    
+                    Antworte NUR als JSON Liste:
+                    [{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 0, "bild_index": 0}]
                     """
                     
                     if st.session_state.m_type == "video":
@@ -252,9 +286,12 @@ else:
                             idx = item.get('bild_index', 0)
                             if idx < len(st.session_state.m_files): st.image(st.session_state.m_files[idx])
                     with c2:
-                        st.markdown(f"**{item.get('mangel')}**")
-                        st.caption(f"Verstoss: {item.get('verstoss')}")
-                        if st.checkbox("Aufnehmen", True, key=str(i)): confirmed.append(item)
+                        prio = item.get('prioritaet', 'Mittel')
+                        color = "red" if prio in ["Kritisch", "Hoch"] else "orange"
+                        st.markdown(f":{color}[**{prio}: {item.get('mangel')}**]")
+                        st.write(f"⚖️ {item.get('verstoss')}")
+                        st.write(f"🛡️ {item.get('massnahme')}")
+                        if st.checkbox("In Bericht aufnehmen", True, key=str(i)): confirmed.append(item)
                     st.divider()
                 
                 if st.form_submit_button("Berichte erstellen"):
@@ -263,22 +300,22 @@ else:
                     st.rerun()
 
     elif st.session_state.app_step == 'screen_c':
-        st.subheader("Fertig!")
+        st.subheader("Berichte fertig!")
         if st.session_state.confirmed:
             
-            # PDF Erstellen
+            # PDF Generierung
             pdf_file = create_pdf(st.session_state.confirmed, st.session_state.m_type, st.session_state.m_files)
+            with open(pdf_file, "rb") as f:
+                st.download_button("📄 PDF Bericht", f, "SSD_Bericht.pdf", mime="application/pdf")
             
-            # Word Erstellen
-            word_file = create_word(st.session_state.confirmed, st.session_state.m_type, st.session_state.m_files)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                with open(pdf_file, "rb") as f:
-                    st.download_button("📥 PDF Herunterladen", f, "Bericht.pdf", mime="application/pdf")
-            with col2:
-                with open(word_file, "rb") as f:
-                    st.download_button("📝 Word Herunterladen", f, "Bericht.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            # Word Generierung (Nur wenn verfügbar)
+            if WORD_AVAILABLE:
+                word_file = create_word(st.session_state.confirmed, st.session_state.m_type, st.session_state.m_files)
+                if word_file:
+                    with open(word_file, "rb") as f:
+                        st.download_button("📝 Word Bericht (Editierbar)", f, "SSD_Bericht.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            else:
+                st.error("Word-Export geht nicht. Hast du 'python-docx' in requirements.txt eingetragen?")
 
         if st.button("Neuer Auftrag"):
             st.session_state.app_step = 'screen_a'
