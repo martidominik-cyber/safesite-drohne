@@ -97,12 +97,8 @@ def delete_user(username):
         with open(USER_DB_FILE, "w") as f:
             json.dump(users, f)
 
-# 🔴 API Key sicher aus den Secrets laden (für Cloud)
-try:
-    API_KEY = st.secrets["GOOGLE_API_KEY"]
-except:
-    # Fallback für lokales Testen
-    API_KEY = "AIzaSyC6VlkfBdItsTWec69GXN2dExTQjlT9LgQ"
+# 🔴 API KEY sicher aus den Streamlit Secrets laden
+API_KEY = st.secrets["GOOGLE_API_KEY"]
 
 LOGO_FILE = "logo.jpg" 
 TITELBILD_FILE = "titelbild.png" 
