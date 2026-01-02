@@ -20,7 +20,7 @@ st.set_page_config(page_title="SafeSite Drohne", page_icon="logo.jpg", layout="w
 LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite-drohne/main/logo.jpg?v=1"
 # ----------------------------------------------------
 
-# DESIGN & CSS
+# DESIGN & CSS (Stabil für Handy Menü)
 st.markdown(f"""
 <style>
     .stAppDeployButton {{display: none;}}
@@ -110,9 +110,9 @@ if 'app_step' not in st.session_state:
 if 'analysis_data' not in st.session_state:
     st.session_state.analysis_data = [] 
 if 'media_type' not in st.session_state:
-    st.session_state.media_type = None # "video" oder "images"
+    st.session_state.media_type = "video" # Default
 if 'media_files' not in st.session_state:
-    st.session_state.media_files = [] # Liste der Dateipfade
+    st.session_state.media_files = [] 
 if 'confirmed_items' not in st.session_state:
     st.session_state.confirmed_items = []
 if 'logged_in' not in st.session_state:
@@ -150,14 +150,12 @@ def clean_json_string(text):
     return text.strip()
 
 def extract_frame(video_path, timestamp):
-    # Nur für Videos nötig
     try:
         cap = cv2.VideoCapture(video_path)
         cap.set(cv2.CAP_PROP_POS_MSEC, timestamp * 1000)
         ret, frame = cap.read()
         cap.release()
-        if ret:
-            return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        if ret: return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     except: return None
     return None
 
@@ -204,12 +202,11 @@ def create_smart_pdf(data_list, media_type, media_files):
         pdf.write(5, massnahme.encode('latin-1', 'replace').decode('latin-1'))
         pdf.ln(8)
 
-        # BILD EINFÜGEN (Unterscheidung Video vs. Foto)
+        # BILDER LOGIK
         image_path_for_pdf = None
         temp_created = False
 
         if media_type == "video":
-            # Video Frame extrahieren
             video_path = media_files[0]
             img = extract_frame(video_path, item.get('zeitstempel_sekunden', 0))
             if img is not None:
@@ -217,18 +214,14 @@ def create_smart_pdf(data_list, media_type, media_files):
                 cv2.imwrite(image_path_for_pdf, cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
                 temp_created = True
         elif media_type == "images":
-            # Das passende Foto nehmen
             img_index = item.get('bild_index', 0)
             if img_index < len(media_files):
                 image_path_for_pdf = media_files[img_index]
 
-        # Bild in PDF packen
         if image_path_for_pdf and os.path.exists(image_path_for_pdf):
-            # Wir zentrieren das Bild und machen es max 140 breit
             try:
                 pdf.image(image_path_for_pdf, x=20, w=140)
-            except:
-                pass # Falls Bild kaputt
+            except: pass
             pdf.ln(5)
             if media_type == "video":
                 pdf.set_font("Arial", 'I', 8)
@@ -291,11 +284,11 @@ with st.sidebar:
         if st.button("🔄 Check Neustarten"):
             st.session_state.app_step = 'screen_a'
             st.session_state.analysis_data = []
-            st.session_state.media_type = None
+            st.session_state.media_type = "video"
             st.session_state.media_files = []
             st.session_state.confirmed_items = []
             st.rerun()
-    st.caption("SSD SafeSite App v19.0 (Foto & Video Support)")
+    st.caption("SSD SafeSite App v20.0")
 
 # ==========================================
 # TITEL
@@ -318,7 +311,7 @@ if selected_mode == "🏠 Home":
     </div>
     """, unsafe_allow_html=True)
     st.info("Starten Sie den 'SafeSite-Check' um Fotos oder Videos zu analysieren.")
-    # Social Links ...
+    
     col1, col2, col3 = st.columns(3)
     link_insta = "https://instagram.com/safesitedrohne" 
     link_face = "https://facebook.com/safesitedrohne"
@@ -348,39 +341,42 @@ elif selected_mode == "🛡️ SafeSite-Check":
         # --- APP START ---
         if st.session_state.app_step == 'screen_a':
             st.subheader("Neuer Auftrag") 
-            st.info("Laden Sie hier Ihre Drohnenaufnahmen hoch (Video ODER Fotos).")
             
-            # WICHTIG: Erlaubt jetzt mehrere Dateien und Bilder!
-            uploaded_files = st.file_uploader("Media Upload", type=["mp4", "jpg", "jpeg", "png"], accept_multiple_files=True)
+            # --- DIE GROSSE ÄNDERUNG: AUSWAHL MODUS ---
+            st.markdown("### Was möchten Sie analysieren?")
+            upload_mode = st.radio("Modus wählen:", ["📹 Video", "📸 Fotos"], horizontal=True)
             
-            if uploaded_files:
-                if st.button("Analyse starten"):
-                    # Checken: Ist es Video oder Bild?
-                    file_list = []
-                    media_type = "images" # Standard-Annahme
-                    
-                    # Wir prüfen die erste Datei
-                    first_file = uploaded_files[0]
-                    if first_file.name.lower().endswith(".mp4"):
-                        media_type = "video"
-                        # Bei Video nehmen wir nur das erste (um Chaos zu vermeiden)
+            file_list = []
+            
+            if upload_mode == "📹 Video":
+                st.info("Laden Sie hier EIN Video (mp4) hoch.")
+                video_file = st.file_uploader("Video-Datei", type=["mp4"])
+                if video_file:
+                    if st.button("Video-Analyse starten"):
                         tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-                        tfile.write(first_file.read())
+                        tfile.write(video_file.read())
                         file_list.append(tfile.name)
                         tfile.close()
-                    else:
-                        # Bei Bildern speichern wir alle
-                        for ufile in uploaded_files:
+                        st.session_state.media_type = "video"
+                        st.session_state.media_files = file_list
+                        st.session_state.app_step = 'screen_b'
+                        st.rerun()
+                        
+            else: # Fotos Modus
+                st.info("Laden Sie hier MEHRERE Fotos (jpg, png) hoch.")
+                photo_files = st.file_uploader("Foto-Dateien", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+                if photo_files:
+                    if st.button(f"{len(photo_files)} Fotos analysieren"):
+                        for ufile in photo_files:
                             suffix = os.path.splitext(ufile.name)[1]
                             tfile = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
                             tfile.write(ufile.read())
                             file_list.append(tfile.name)
                             tfile.close()
-                    
-                    st.session_state.media_type = media_type
-                    st.session_state.media_files = file_list
-                    st.session_state.app_step = 'screen_b'
-                    st.rerun()
+                        st.session_state.media_type = "images"
+                        st.session_state.media_files = file_list
+                        st.session_state.app_step = 'screen_b'
+                        st.rerun()
 
         elif st.session_state.app_step == 'screen_b':
             st.subheader("🔍 Scanner")
@@ -388,18 +384,15 @@ elif selected_mode == "🛡️ SafeSite-Check":
             media_type = st.session_state.media_type
             media_files = st.session_state.media_files
             
-            # Anzeige der Medien
             if media_type == "video":
                 st.video(media_files[0])
             else:
-                # Galerie anzeigen
                 st.write(f"📸 {len(media_files)} Fotos geladen")
                 cols = st.columns(3)
                 for i, img_path in enumerate(media_files):
                     with cols[i % 3]:
-                        st.image(img_path, use_container_width=True, caption=f"Bild {i+1}")
+                        st.image(img_path, use_container_width=True, caption=f"Foto {i+1}")
 
-            # KI Analyse
             if not st.session_state.analysis_data:
                 status = st.status("🤖 KI analysiert Baustelle...", expanded=True)
                 try:
@@ -410,13 +403,11 @@ elif selected_mode == "🛡️ SafeSite-Check":
                         model = genai.GenerativeModel('gemini-2.5-flash')
                         
                         if media_type == "video":
-                            # VIDEO ANALYSE
                             status.write("Video Upload zu Google...")
                             video_file = genai.upload_file(media_files[0])
                             while video_file.state.name == "PROCESSING":
                                 time.sleep(1)
                                 video_file = genai.get_file(video_file.name)
-                            
                             status.write("Suche Verstösse...")
                             prompt = """
                             Analysiere das Video nach BauAV/SUVA. Finde 3 Mängel.
@@ -424,25 +415,19 @@ elif selected_mode == "🛡️ SafeSite-Check":
                             """
                             response = model.generate_content([video_file, prompt], generation_config={"response_mime_type": "application/json"})
                             st.session_state.analysis_data = json.loads(clean_json_string(response.text))
-                            
                         else:
-                            # BILD ANALYSE (Neu!)
                             status.write("Analysiere Fotos...")
                             image_parts = []
                             for path in media_files:
-                                img = Image.open(path)
-                                image_parts.append(img)
-                            
+                                image_parts.append(Image.open(path))
                             prompt = """
                             Du bist Schweizer Bau-Sicherheitsexperte (SiBe).
                             Analysiere diese Bilder nach BauAV/SUVA.
                             Finde Mängel auf den Bildern.
-                            WICHTIG: Gib an, auf welchem Bild (Index 0 bis X) der Mangel ist.
-                            
+                            WICHTIG: Gib im Feld 'bild_index' an, welches Bild gemeint ist (0 = das erste, 1 = das zweite usw.).
                             JSON Format: 
                             [{"kategorie": "...", "prioritaet": "Hoch", "mangel": "...", "verstoss": "...", "massnahme": "...", "bild_index": 0}]
                             """
-                            # Wir senden Text + Alle Bilder
                             content_list = [prompt] + image_parts
                             response = model.generate_content(content_list, generation_config={"response_mime_type": "application/json"})
                             st.session_state.analysis_data = json.loads(clean_json_string(response.text))
@@ -451,7 +436,6 @@ elif selected_mode == "🛡️ SafeSite-Check":
                 except Exception as e:
                     st.error(f"Fehler: {e}")
             
-            # Ergebnisse anzeigen
             if st.session_state.analysis_data:
                 st.markdown("### ⚠️ Ergebnisse prüfen")
                 with st.form("validation_form"):
@@ -459,16 +443,13 @@ elif selected_mode == "🛡️ SafeSite-Check":
                     for i, item in enumerate(st.session_state.analysis_data):
                         col_img, col_text = st.columns([1, 2])
                         with col_img:
-                            # Bildanzeige Logik
                             if media_type == "video":
                                 img = extract_frame(media_files[0], item.get('zeitstempel_sekunden', 0))
                                 if img is not None: st.image(img, use_container_width=True)
                             else:
-                                # Foto anzeigen
                                 idx = item.get('bild_index', 0)
                                 if idx < len(media_files):
                                     st.image(media_files[idx], use_container_width=True)
-                                    
                         with col_text:
                             st.markdown(f"**{i+1}. {item.get('kategorie')}**")
                             st.write(f"🛑 {item.get('mangel')}")
@@ -486,9 +467,7 @@ elif selected_mode == "🛡️ SafeSite-Check":
             count = len(st.session_state.confirmed_items)
             
             if count > 0:
-                # PDF Funktion aufrufen (angepasst für Bilder!)
                 pdf_file = create_smart_pdf(st.session_state.confirmed_items, st.session_state.media_type, st.session_state.media_files)
-                
                 col1, col2 = st.columns(2)
                 with col1:
                     with open(pdf_file, "rb") as f:
@@ -503,11 +482,9 @@ elif selected_mode == "🛡️ SafeSite-Check":
                 
             st.divider()
             if st.button("🏠 Neuer Flug"):
-                # Reset
                 st.session_state.app_step = 'screen_a'
                 st.session_state.analysis_data = []
                 st.session_state.media_files = []
-                st.session_state.media_type = None
                 st.session_state.confirmed_items = []
                 st.rerun()
 
@@ -522,13 +499,12 @@ elif st.session_state.logged_in and st.session_state.current_user == "admin" and
                 save_user(nu, np); st.rerun()
     st.json(load_users())
 
-# --- BAUAV & REGELN (gekürzt für Übersicht, Funktion bleibt) ---
 elif selected_mode == "📚 BauAV Nachschlagewerk":
     st.subheader("📚 BauAV")
-    # ... (Dein BauAV Code hier, unverändert) ...
-    st.info("Hier stehen deine BauAV Artikel.")
+    # ... Hier könnte dein BauAV Code stehen ...
+    st.info("BauAV Datenbank")
 
 elif selected_mode == "📋 8 Lebenswichtige Regeln":
     st.subheader("🇨🇭 SUVA Regeln")
-    # ... (Dein Regeln Code hier, unverändert) ...
-    st.info("Hier stehen deine 8 Regeln.")
+    # ... Hier könnten deine Regeln stehen ...
+    st.info("SUVA Regeln")
