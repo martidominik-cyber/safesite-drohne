@@ -8,6 +8,7 @@ from fpdf import FPDF
 import time
 from datetime import date
 import urllib.parse
+from PIL import Image
 
 # ==========================================
 # 0. SETUP & KONFIGURATION
@@ -420,101 +421,173 @@ elif selected_mode == "🛡️ SafeSite-Check":
                     st.error("Benutzername oder Passwort falsch.")
         
         st.divider()
-        st.info("Noch keinen Zugang? Kontaktieren Sie SSD SafeSite Drohne für ein Angebot.")
+        st.info("Noch keinen Zugang? Kontaktieren Sie SafeSite Drohne für ein Angebot.")
         
     else:
-        # APP ABLAUF
+        # APP ABLAUF (NEU: Mit Auswahl Video oder Foto)
         if st.session_state.app_step == 'screen_a':
-            st.subheader("SafeSite-Check") 
-            st.info(f"Bereit für einen neuen Auftrag, {st.session_state.current_user}?")
-            uploaded_file = st.file_uploader("Start: Video hochladen oder Kamera öffnen", type=["mp4"])
-            if uploaded_file:
-                tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-                tfile.write(uploaded_file.read())
-                st.session_state.video_path = tfile.name
-                tfile.close()
-                st.session_state.app_step = 'screen_b'
-                st.rerun()
+            st.subheader("Neuer Auftrag")
+            
+            # 1. AUSWAHL: Was willst du hochladen?
+            st.markdown("### 📂 Was möchten Sie hochladen?")
+            upload_mode = st.radio("Bitte wählen:", ["📹 Video-Datei", "📸 Foto-Dateien"], horizontal=True)
+            
+            file_list = []
+            
+            # 2. UPLOADER ZEIGEN (Je nach Auswahl)
+            if upload_mode == "📹 Video-Datei":
+                st.info("Bitte laden Sie EIN Video (.mp4) hoch.")
+                video_file = st.file_uploader("Video wählen", type=["mp4"], key="vid_uploader")
+                
+                if video_file is not None:
+                    if st.button("🚀 Video-Analyse starten"):
+                        tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+                        tfile.write(video_file.read())
+                        file_list.append(tfile.name)
+                        tfile.close()
+                        
+                        # Speichern für den nächsten Schritt
+                        st.session_state.media_type = "video"
+                        st.session_state.media_files = file_list
+                        st.session_state.app_step = 'screen_b'
+                        st.rerun()
+                        
+            else: # Modus: Fotos
+                st.info("Sie können MEHRERE Fotos (.jpg, .png) gleichzeitig auswählen.")
+                photo_files = st.file_uploader("Fotos wählen", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key="img_uploader")
+                
+                if photo_files:
+                    if st.button(f"🚀 {len(photo_files)} Fotos analysieren"):
+                        for ufile in photo_files:
+                            suffix = os.path.splitext(ufile.name)[1]
+                            tfile = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                            tfile.write(ufile.read())
+                            file_list.append(tfile.name)
+                            tfile.close()
+                            
+                        # Speichern für den nächsten Schritt
+                        st.session_state.media_type = "images"
+                        st.session_state.media_files = file_list
+                        st.session_state.app_step = 'screen_b'
+                        st.rerun()
 
         elif st.session_state.app_step == 'screen_b':
-            st.subheader("🔍 Scanner")
-            video_path = st.session_state.video_path
-            st.video(video_path)
+            st.subheader("🔍 Scanner & KI-Analyse")
             
+            media_type = st.session_state.media_type
+            media_files = st.session_state.media_files
+            
+            # Anzeige: Was haben wir?
+            if media_type == "video":
+                st.video(media_files[0])
+            else:
+                st.success(f"📸 {len(media_files)} Bilder geladen")
+                cols = st.columns(3)
+                for i, img_path in enumerate(media_files):
+                    with cols[i % 3]:
+                        st.image(img_path, use_container_width=True, caption=f"Bild {i+1}")
+
+            # KI ANALYSE STARTEN
             if not st.session_state.analysis_data:
-                status = st.status("🤖 KI analysiert Video...", expanded=True)
+                status = st.status("🤖 KI analysiert Baustelle...", expanded=True)
                 try:
                     if "HIER_EINFÜGEN" in API_KEY:
-                        st.error("API Key fehlt!")
+                        st.error("⚠️ API Key fehlt im Code!")
                     else:
-                        status.write("Upload zu Google...")
                         genai.configure(api_key=API_KEY)
-                        video_file = genai.upload_file(video_path)
-                        while video_file.state.name == "PROCESSING":
-                            time.sleep(1)
-                            video_file = genai.get_file(video_file.name)
-                        
-                        status.write("Suche Verstösse gegen BauAV...")
                         model = genai.GenerativeModel('gemini-2.5-flash')
                         
-                        prompt = """
-                        Du bist ein Schweizer Bau-Sicherheitsexperte (SiBe).
-                        Analysiere das Video STRENG nach **Bauarbeitenverordnung (BauAV)** und SUVA-Regeln.
-                        Finde 3 Mängel.
-                        Gib das Ergebnis NUR als JSON-Liste zurück.
-                        Format:
-                        [{"kategorie": "...", "prioritaet": "Hoch", "mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 10}]
-                        WICHTIG: Nenne im Feld 'verstoss' IMMER den konkreten Artikel (z.B. BauAV Art. X).
-                        """
-                        response = model.generate_content([video_file, prompt], generation_config={"response_mime_type": "application/json"})
-                        st.session_state.analysis_data = json.loads(clean_json_string(response.text))
-                        status.update(label="Fertig!", state="complete", expanded=False)
+                        if media_type == "video":
+                            # --- VIDEO LOGIK ---
+                            status.write("Lade Video zu Google hoch...")
+                            video_file = genai.upload_file(media_files[0])
+                            while video_file.state.name == "PROCESSING":
+                                time.sleep(1)
+                                video_file = genai.get_file(video_file.name)
+                            
+                            status.write("Suche Sicherheitsmängel...")
+                            prompt = """
+                            Analysiere das Video streng nach BauAV/SUVA. Finde 3 relevante Mängel.
+                            JSON Format: [{"kategorie": "...", "prioritaet": "Hoch", "mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 10}]
+                            """
+                            response = model.generate_content([video_file, prompt], generation_config={"response_mime_type": "application/json"})
+                            st.session_state.analysis_data = json.loads(clean_json_string(response.text))
+                            
+                        else:
+                            # --- FOTO LOGIK ---
+                            status.write("Analysiere Fotos pixelgenau...")
+                            image_parts = []
+                            for path in media_files:
+                                image_parts.append(Image.open(path))
+                            
+                            prompt = """
+                            Du bist Schweizer SiBe. Analysiere diese Bilder nach BauAV.
+                            Gib bei 'bild_index' an, auf welchem Foto (0, 1, 2...) der Mangel ist.
+                            JSON Format: 
+                            [{"kategorie": "...", "prioritaet": "Hoch", "mangel": "...", "verstoss": "...", "massnahme": "...", "bild_index": 0}]
+                            """
+                            content_list = [prompt] + image_parts
+                            response = model.generate_content(content_list, generation_config={"response_mime_type": "application/json"})
+                            st.session_state.analysis_data = json.loads(clean_json_string(response.text))
+                            
+                        status.update(label="Analyse fertig!", state="complete", expanded=False)
                 except Exception as e:
-                    st.error(f"Fehler: {e}")
+                    st.error(f"Ein Fehler ist aufgetreten: {e}")
             
+            # ERGEBNISSE ANZEIGEN
             if st.session_state.analysis_data:
-                st.markdown("### ⚠️ Ergebnisse prüfen")
+                st.markdown("### ⚠️ Gefundene Mängel bestätigen")
                 with st.form("validation_form"):
                     confirmed = []
                     for i, item in enumerate(st.session_state.analysis_data):
                         col_img, col_text = st.columns([1, 2])
                         with col_img:
-                            img = extract_frame(video_path, item.get('zeitstempel_sekunden', 0))
-                            if img is not None: st.image(img, use_container_width=True)
+                            # Das richtige Bild anzeigen (Video-Frame oder Foto)
+                            if media_type == "video":
+                                img = extract_frame(media_files[0], item.get('zeitstempel_sekunden', 0))
+                                if img is not None: st.image(img, use_container_width=True)
+                            else:
+                                idx = item.get('bild_index', 0)
+                                if idx < len(media_files):
+                                    st.image(media_files[idx], use_container_width=True)
+                                    
                         with col_text:
                             st.markdown(f"**{i+1}. {item.get('kategorie')}**")
                             st.write(f"🛑 {item.get('mangel')}")
                             st.caption(f"⚖️ {item.get('verstoss')}")
-                            if st.checkbox(f"✅ Bestätigen", value=True, key=f"check_{i}"):
+                            if st.checkbox(f"In Bericht aufnehmen", value=True, key=f"check_{i}"):
                                 confirmed.append(item)
                         st.divider()
-                    if st.form_submit_button("✅ Prüfung abschliessen & Bericht erstellen"):
+                    
+                    if st.form_submit_button("✅ Bericht erstellen"):
                         st.session_state.confirmed_items = confirmed
                         st.session_state.app_step = 'screen_c'
                         st.rerun()
 
         elif st.session_state.app_step == 'screen_c':
-            st.subheader("📄 Bericht")
+            st.subheader("📄 Fertiger Bericht")
             count = len(st.session_state.confirmed_items)
-            if count == 0: st.success("Keine Mängel!")
-            else: st.warning(f"⚠️ {count} Mängel dokumentiert.")
+            
             if count > 0:
-                pdf_file = create_smart_pdf(st.session_state.confirmed_items, st.session_state.video_path)
+                # PDF erstellen
+                pdf_file = create_smart_pdf(st.session_state.confirmed_items, st.session_state.media_type, st.session_state.media_files)
+                
                 col1, col2 = st.columns(2)
                 with col1:
                     with open(pdf_file, "rb") as f:
-                        st.download_button("📥 PDF Speichern", f, "SSD_Bericht.pdf", "application/pdf", use_container_width=True)
+                        st.download_button("📥 PDF Herunterladen", f, "SSD_Bericht.pdf", "application/pdf", use_container_width=True)
                 with col2:
-                    subject = "Sicherheitsbericht SSD SafeSite"
-                    body = f"Grüezi,\n\nanbei der Bericht mit {count} Mängeln gemäss BauAV.\n\nSSD Team"
-                    mailto = f"mailto:?subject={urllib.parse.quote(subject)}&body={urllib.parse.quote(body)}"
-                    st.link_button("📧 PDF an Bauführer senden", mailto, use_container_width=True)
+                    st.success("Bericht bereit zum Versenden.")
+            else:
+                st.warning("Keine Mängel ausgewählt.")
+                
             st.divider()
-            if st.button("🏠 Neuer Flug"):
+            if st.button("🏠 Zurück zum Start (Neuer Auftrag)"):
                 st.session_state.app_step = 'screen_a'
                 st.session_state.analysis_data = []
+                st.session_state.media_files = []
+                st.session_state.media_type = "video"
                 st.session_state.confirmed_items = []
-                st.session_state.video_path = None
                 st.rerun()
 
 # >>> MODUS 4: ADMIN / KUNDENVERWALTUNG <<<
