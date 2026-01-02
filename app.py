@@ -16,7 +16,7 @@ st.set_page_config(page_title="SafeSite Drohne", page_icon="logo.jpg", layout="w
 
 # ----------------------------------------------------
 # 🔴 HIER DEINEN GITHUB-NAMEN EINTRAGEN!
-LOGO_URL_GITHUB = "https://raw.githubusercontent.com/DEIN_BENUTZERNAME/safesite-drohne/main/logo.jpg?v=1"
+LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite-drohne/main/logo.jpg?v=1"
 # ----------------------------------------------------
 
 # STYLE
@@ -66,7 +66,7 @@ class PDF(FPDF):
     def header(self):
         self.set_font('Arial', 'B', 16)
         self.set_text_color(255, 102, 0)
-        self.cell(0, 10, 'Sicherheitsbericht (Deep Scan)', ln=True)
+        self.cell(0, 10, 'Sicherheitsbericht', ln=True)
         self.ln(10)
 
 def create_pdf(data, m_type, m_files):
@@ -129,87 +129,73 @@ if not st.session_state.logged_in:
 else:
     # HAUPT APP
     if st.session_state.app_step == 'screen_a':
-        st.subheader("Neuer Auftrag (Deep Scan)")
-        st.info("Modus: Gemini 1.5 Pro mit Chain-of-Thought Analyse")
+        st.subheader("Neuer Auftrag")
         
         mode = st.radio("Quelle:", ["📹 Video", "📸 Fotos"], horizontal=True)
         files = []
         
         if mode == "📹 Video":
             vf = st.file_uploader("Video", type=["mp4"])
-            if vf and st.button("Deep Scan starten"):
+            if vf and st.button("Analyse starten"):
                 t = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4'); t.write(vf.read()); files.append(t.name); t.close()
                 st.session_state.m_type = "video"; st.session_state.m_files = files; st.session_state.app_step = 'screen_b'; st.rerun()
         else:
             pf = st.file_uploader("Fotos", type=["jpg", "png"], accept_multiple_files=True)
-            if pf and st.button("Deep Scan starten"):
+            if pf and st.button("Analyse starten"):
                 for f in pf:
                     t = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg'); t.write(f.read()); files.append(t.name); t.close()
                 st.session_state.m_type = "images"; st.session_state.m_files = files; st.session_state.app_step = 'screen_b'; st.rerun()
 
     elif st.session_state.app_step == 'screen_b':
-        st.subheader("🕵️‍♂️ KI scannt Bildpunkte...")
+        st.subheader("🕵️‍♂️ KI scannt Baustelle...")
         
-        if st.session_state.m_type == "video": st.video(st.session_state.m_files[0])
+        if st.session_state.m_type == "video": 
+            st.video(st.session_state.m_files[0])
         else: 
-            # --- HIER WAR DER FEHLER ---
-            # Wir machen das jetzt sauber über mehrere Zeilen:
+            # --- HIER WAR DER FEHLER - JETZT REPARIERT ---
             cols = st.columns(3)
             for i, f in enumerate(st.session_state.m_files):
                 with cols[i % 3]:
                     st.image(f, caption=f"Bild {i+1}")
-            # ---------------------------
+            # ---------------------------------------------
 
         if not st.session_state.analysis_data:
-            with st.spinner("Analyse läuft... (Bitte warten, ich schaue genau hin)"):
+            with st.spinner("Analyse läuft..."):
                 try:
                     genai.configure(api_key=API_KEY)
                     
-                    # SYSTEM INSTRUKTION
-                    system_instruction = """
-                    Du bist ein extrem kritischer Bau-Sicherheitsprüfer (BauAV/SUVA).
-                    Dein Ziel: Finde JEDES Risiko.
-                    Gehe so vor:
-                    1. Scanne das Bild Raster für Raster.
-                    2. Liste ALLE Objekte auf.
-                    3. Prüfe JEDES Objekt auf Konformität.
-                    4. Gib eine Liste ALLER Verstöße zurück.
-                    """
-                    
-                    model = genai.GenerativeModel('gemini-1.5-pro', system_instruction=system_instruction)
+                    # WIEDER ZURÜCK ZUM FLASH MODELL (SCHNELLER & BEWÄHRT)
+                    model = genai.GenerativeModel('gemini-2.5-flash')
                     
                     prompt = """
-                    Analysiere die Aufnahmen.
-                    Achte besonders auf:
-                    - Fehlende Absturzsicherung an ALLEN Kanten.
-                    - Jede Person ohne Helm/Weste.
-                    - Unordnung (Stolperstellen).
-                    - Leiter-Sicherung.
-                    - Gerüstbeläge und Zugänge.
+                    Du bist Schweizer Bau-Sicherheitsexperte (SiBe).
+                    Analysiere die Aufnahmen streng nach BauAV/SUVA.
+                    
+                    WICHTIG:
+                    - Finde ALLE sichtbaren Mängel (begrenze dich NICHT auf 3).
+                    - Wenn du 5 Fehler siehst, liste 5 auf.
+                    - Achte auf: Absturzsicherung, PSA (Helme), Gräben, Gerüste.
                     
                     Gib das Ergebnis NUR als JSON Array zurück:
                     [{"kategorie": "...", "prioritaet": "Hoch/Mittel", "mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 0, "bild_index": 0}]
                     """
                     
-                    config = genai.types.GenerationConfig(max_output_tokens=8000, temperature=0.4)
-
                     if st.session_state.m_type == "video":
                         f = genai.upload_file(st.session_state.m_files[0])
                         while f.state.name == "PROCESSING": time.sleep(1)
-                        res = model.generate_content([f, prompt], generation_config=config)
+                        res = model.generate_content([f, prompt], generation_config={"response_mime_type": "application/json"})
                     else:
                         imgs = [Image.open(p) for p in st.session_state.m_files]
-                        res = model.generate_content([prompt] + imgs, generation_config=config)
+                        res = model.generate_content([prompt] + imgs, generation_config={"response_mime_type": "application/json"})
                     
-                    raw_text = res.text
-                    st.session_state.analysis_data = json.loads(clean_json(raw_text))
+                    st.session_state.analysis_data = json.loads(clean_json(res.text))
                     st.rerun()
                 except Exception as e: 
-                    st.error(f"Fehler bei der Analyse: {e}")
+                    st.error(f"Fehler: {e}")
                     if st.button("Nochmal versuchen"): st.rerun()
 
         if st.session_state.analysis_data:
-            st.success(f"⚠️ {len(st.session_state.analysis_data)} Mängel identifiziert!")
+            st.success(f"⚠️ {len(st.session_state.analysis_data)} Mängel gefunden")
             
             with st.form("check"):
                 confirmed = []
