@@ -157,7 +157,6 @@ with st.sidebar:
         st.image(LOGO_FILE, use_container_width=True)
     
     st.title("Menü")
-    # Hier sind deine Menüpunkte zurück!
     menu = st.radio("Navigation", [
         "🏠 Home", 
         "🛡️ SafeSite-Check", 
@@ -215,13 +214,16 @@ elif menu == "🛡️ SafeSite-Check":
         if st.session_state.type == "video": st.video(st.session_state.files[0])
         else:
             cols = st.columns(3)
-            for i,f in enumerate(st.session_state.files): with cols[i%3]: st.image(f, caption=f"Bild {i+1}")
+            for i,f in enumerate(st.session_state.files): 
+                with cols[i%3]: st.image(f, caption=f"Bild {i+1}")
 
         if not st.session_state.data:
             with st.spinner("Analysiere Baustelle KRITISCH... (kann 30s dauern)"):
                 try:
                     genai.configure(api_key=API_KEY)
                     model = genai.GenerativeModel('gemini-1.5-pro')
+                    
+                    # HIER WAR DER FEHLER - JETZT KORRIGIERT:
                     prompt = """
                     Du bist ein strenger Schweizer Bau-Sicherheitsprüfer (SiBe).
                     Analysiere die Bilder/Video KRITISCH nach BauAV und SUVA.
@@ -237,6 +239,7 @@ elif menu == "🛡️ SafeSite-Check":
                     Antworte NUR als JSON Liste:
                     [{"mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 0, "bild_index": 0}]
                     """
+                    
                     if st.session_state.type == "video":
                         f = genai.upload_file(st.session_state.files[0])
                         while f.state.name == "PROCESSING": time.sleep(1)
