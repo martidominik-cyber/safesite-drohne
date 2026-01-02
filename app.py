@@ -8,6 +8,7 @@ from fpdf import FPDF
 import time
 from datetime import date
 import urllib.parse
+from PIL import Image
 
 # ==========================================
 # 0. SETUP & KONFIGURATION
