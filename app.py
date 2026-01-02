@@ -8,6 +8,8 @@ from fpdf import FPDF
 import time
 from datetime import date
 from PIL import Image
+from docx import Document
+from docx.shared import Inches
 
 # ==========================================
 # 0. KONFIGURATION
@@ -16,7 +18,7 @@ st.set_page_config(page_title="SafeSite Drohne", page_icon="logo.jpg", layout="w
 
 # ----------------------------------------------------
 # 🔴 HIER DEINEN GITHUB-NAMEN EINTRAGEN!
-LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite-drohne/main/logo.jpg?v=1"
+LOGO_URL_GITHUB = "https://raw.githubusercontent.com/DEIN_BENUTZERNAME/safesite-drohne/main/logo.jpg?v=1"
 # ----------------------------------------------------
 
 # STYLE
@@ -62,6 +64,7 @@ def extract_frame(video_path, timestamp):
         if ret: return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     except: return None
 
+# --- PDF GENERATOR ---
 class PDF(FPDF):
     def header(self):
         self.set_font('Arial', 'B', 16)
@@ -100,6 +103,50 @@ def create_pdf(data, m_type, m_files):
             
     out = "Bericht.pdf"
     pdf.output(out)
+    return out
+
+# --- WORD GENERATOR (NEU) ---
+def create_word(data, m_type, m_files):
+    doc = Document()
+    doc.add_heading('Sicherheitsbericht SafeSite', 0)
+    doc.add_paragraph(f"Datum: {date.today().strftime('%d.%m.%Y')}")
+    
+    for i, item in enumerate(data):
+        doc.add_heading(f"{i+1}. {item.get('mangel', 'Mangel')}", level=1)
+        
+        p = doc.add_paragraph()
+        runner = p.add_run("Verstoss: ")
+        runner.bold = True
+        p.add_run(f"{item.get('verstoss')}\n")
+        
+        runner = p.add_run("Massnahme: ")
+        runner.bold = True
+        p.add_run(f"{item.get('massnahme')}")
+        
+        # Bild einfügen
+        img_path = None
+        temp_created = False
+        
+        if m_type == "video":
+            frame = extract_frame(m_files[0], item.get('zeitstempel_sekunden', 0))
+            if frame is not None:
+                img_path = f"temp_word_{i}.jpg"
+                cv2.imwrite(img_path, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+                temp_created = True
+        elif m_type == "images":
+            idx = item.get('bild_index', 0)
+            if idx < len(m_files): img_path = m_files[idx]
+            
+        if img_path:
+            try:
+                doc.add_picture(img_path, width=Inches(5))
+            except: pass
+            
+            if temp_created and os.path.exists(img_path):
+                os.remove(img_path)
+
+    out = "Bericht.docx"
+    doc.save(out)
     return out
 
 # ==========================================
@@ -152,19 +199,15 @@ else:
         if st.session_state.m_type == "video": 
             st.video(st.session_state.m_files[0])
         else: 
-            # --- HIER WAR DER FEHLER - JETZT REPARIERT ---
             cols = st.columns(3)
             for i, f in enumerate(st.session_state.m_files):
                 with cols[i % 3]:
                     st.image(f, caption=f"Bild {i+1}")
-            # ---------------------------------------------
 
         if not st.session_state.analysis_data:
             with st.spinner("Analyse läuft..."):
                 try:
                     genai.configure(api_key=API_KEY)
-                    
-                    # WIEDER ZURÜCK ZUM FLASH MODELL (SCHNELLER & BEWÄHRT)
                     model = genai.GenerativeModel('gemini-2.5-flash')
                     
                     prompt = """
@@ -173,7 +216,7 @@ else:
                     
                     WICHTIG:
                     - Finde ALLE sichtbaren Mängel (begrenze dich NICHT auf 3).
-                    - Wenn du 5 Fehler siehst, liste 5 auf.
+                    - Liste so viele wie möglich auf.
                     - Achte auf: Absturzsicherung, PSA (Helme), Gräben, Gerüste.
                     
                     Gib das Ergebnis NUR als JSON Array zurück:
@@ -214,7 +257,7 @@ else:
                         if st.checkbox("Aufnehmen", True, key=str(i)): confirmed.append(item)
                     st.divider()
                 
-                if st.form_submit_button("PDF Erstellen"):
+                if st.form_submit_button("Berichte erstellen"):
                     st.session_state.confirmed = confirmed
                     st.session_state.app_step = 'screen_c'
                     st.rerun()
@@ -222,10 +265,21 @@ else:
     elif st.session_state.app_step == 'screen_c':
         st.subheader("Fertig!")
         if st.session_state.confirmed:
+            
+            # PDF Erstellen
             pdf_file = create_pdf(st.session_state.confirmed, st.session_state.m_type, st.session_state.m_files)
-            with open(pdf_file, "rb") as f:
-                st.download_button("PDF Herunterladen", f, "Bericht.pdf")
-        
+            
+            # Word Erstellen
+            word_file = create_word(st.session_state.confirmed, st.session_state.m_type, st.session_state.m_files)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                with open(pdf_file, "rb") as f:
+                    st.download_button("📥 PDF Herunterladen", f, "Bericht.pdf", mime="application/pdf")
+            with col2:
+                with open(word_file, "rb") as f:
+                    st.download_button("📝 Word Herunterladen", f, "Bericht.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
         if st.button("Neuer Auftrag"):
             st.session_state.app_step = 'screen_a'
             st.session_state.analysis_data = []
