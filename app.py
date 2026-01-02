@@ -17,7 +17,7 @@ st.set_page_config(page_title="SafeSite Drohne", page_icon="logo.jpg", layout="w
 
 # ----------------------------------------------------
 # 🔴 HIER DEINEN GITHUB-LINK EINFÜGEN!
-LOGO_URL_GITHUB = "https://raw.githubusercontent.com/DEIN_BENUTZERNAME/safesite-drohne/main/logo.jpg?v=1"
+LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite-drohne/main/logo.jpg?v=1"
 # ----------------------------------------------------
 
 # DESIGN & CSS
@@ -57,20 +57,12 @@ def save_user(username, password):
     with open(USER_DB_FILE, "w") as f:
         json.dump(users, f)
 
-def delete_user(username):
-    users = load_users()
-    if username in users:
-        del users[username]
-        with open(USER_DB_FILE, "w") as f:
-            json.dump(users, f)
-
-# 🔴 API KEY SICHER LADEN (Aus Secrets)
+# 🔴 API KEY LADEN
 try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
 except:
-    # Fallback, falls lokal getestet wird (aber besser Secrets nutzen!)
-    st.error("Kein API Key in den Secrets gefunden! Bitte unter 'Manage App' -> 'Secrets' eintragen.")
-    st.stop()
+    # HIER KEY EINFÜGEN FÜR LOKALES TESTEN
+    API_KEY = "DEIN_API_KEY_HIER_EINFÜGEN"
 
 LOGO_FILE = "logo.jpg" 
 TITELBILD_FILE = "titelbild.png" 
@@ -95,12 +87,6 @@ st.markdown("""
         background-color: #CC5200 !important;
         border-color: #993D00 !important;
     }
-    .social-link {
-        display: inline-block; padding: 10px 20px; margin: 10px;
-        color: white !important; background-color: #333;
-        text-decoration: none; border-radius: 5px;
-        font-weight: bold; text-align: center; width: 100%;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -123,7 +109,7 @@ if 'current_user' not in st.session_state:
     st.session_state.current_user = None
 
 # ==========================================
-# 2. HILFS-FUNKTIONEN (PDF & MEDIEN)
+# 2. HILFS-FUNKTIONEN
 # ==========================================
 
 class PDF(FPDF):
@@ -139,16 +125,17 @@ class PDF(FPDF):
         self.set_xy(60, 25)
         self.set_text_color(0, 0, 0)
         heute = date.today().strftime("%d.%m.%Y")
-        self.cell(0, 5, f"Datum: {heute} | Basis: BauAV & SUVA | KI-Analyse", ln=True)
+        self.cell(0, 5, f"Datum: {heute} | Basis: BauAV & SUVA | KI-Analyse (Pro-Modell)", ln=True)
         self.ln(15)
-
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.cell(0, 10, f'Seite {self.page_no()}', 0, 0, 'R')
 
 def clean_json_string(text):
-    text = text.strip().replace("```json", "").replace("```", "")
+    text = text.strip()
+    if text.startswith("```json"): text = text[7:]
+    if text.endswith("```"): text = text[:-3]
     return text.strip()
 
 def extract_frame(video_path, timestamp):
@@ -173,7 +160,6 @@ def create_smart_pdf(data_list, media_type, media_files):
 
     for idx, item in enumerate(data_list):
         if pdf.get_y() > 220: pdf.add_page()
-        
         pdf.set_font("Arial", 'B', 12)
         pdf.set_text_color(204, 0, 0) 
         titel = f"{idx+1}. {item.get('kategorie', 'Allgemein')} (Priorität: {item.get('prioritaet', 'Mittel')})"
@@ -186,23 +172,9 @@ def create_smart_pdf(data_list, media_type, media_files):
         verstoss = item.get('verstoss', '-')
         massnahme = item.get('massnahme', '-')
         
-        pdf.set_font("Arial", 'B', 10)
-        pdf.write(5, "Mangel: ")
-        pdf.set_font("Arial", '', 10)
-        pdf.write(5, mangel.encode('latin-1', 'replace').decode('latin-1'))
-        pdf.ln(6)
-        
-        pdf.set_font("Arial", 'B', 10)
-        pdf.write(5, "Verstoss: ")
-        pdf.set_font("Arial", '', 10)
-        pdf.write(5, verstoss.encode('latin-1', 'replace').decode('latin-1'))
-        pdf.ln(6)
-        
-        pdf.set_font("Arial", 'B', 10)
-        pdf.write(5, "Massnahme: ")
-        pdf.set_font("Arial", '', 10)
-        pdf.write(5, massnahme.encode('latin-1', 'replace').decode('latin-1'))
-        pdf.ln(8)
+        pdf.set_font("Arial", 'B', 10); pdf.write(5, "Mangel: "); pdf.set_font("Arial", '', 10); pdf.write(5, mangel.encode('latin-1', 'replace').decode('latin-1')); pdf.ln(6)
+        pdf.set_font("Arial", 'B', 10); pdf.write(5, "Verstoss: "); pdf.set_font("Arial", '', 10); pdf.write(5, verstoss.encode('latin-1', 'replace').decode('latin-1')); pdf.ln(6)
+        pdf.set_font("Arial", 'B', 10); pdf.write(5, "Massnahme: "); pdf.set_font("Arial", '', 10); pdf.write(5, massnahme.encode('latin-1', 'replace').decode('latin-1')); pdf.ln(8)
 
         image_path_for_pdf = None
         temp_created = False
@@ -220,8 +192,7 @@ def create_smart_pdf(data_list, media_type, media_files):
                 image_path_for_pdf = media_files[img_index]
 
         if image_path_for_pdf and os.path.exists(image_path_for_pdf):
-            try:
-                pdf.image(image_path_for_pdf, x=20, w=140)
+            try: pdf.image(image_path_for_pdf, x=20, w=140)
             except: pass
             pdf.ln(5)
             if media_type == "video":
@@ -233,284 +204,144 @@ def create_smart_pdf(data_list, media_type, media_files):
             try: os.remove(image_path_for_pdf)
             except: pass
 
-    if pdf.get_y() > 200: pdf.add_page()
-    pdf.ln(15)
-    pdf.set_font("Arial", 'B', 11)
-    pdf.set_text_color(0, 51, 102)
-    pdf.cell(0, 10, "Freigabe / Unterschriften", ln=True)
-    pdf.set_text_color(0, 0, 0)
-    pdf.line(10, pdf.get_y(), 190, pdf.get_y())
-    pdf.ln(5)
-    
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 10, "Ort, Datum: ...........................................................", ln=True)
-    pdf.ln(15)
-    
-    y = pdf.get_y()
-    pdf.line(10, y, 80, y)
-    pdf.text(10, y + 5, "Visum SSD Pilot")
-    pdf.line(110, y, 180, y)
-    pdf.text(110, y + 5, "Visum Polier / Unternehmer")
-    pdf.ln(25)
-    y = pdf.get_y()
-    pdf.line(10, y, 80, y)
-    pdf.text(10, y + 5, "Visum Sicherheitsbeauftragter (SiBe)")
-    
     out = "SSD_Bericht.pdf"
     pdf.output(out)
     return out
 
 # ==========================================
-# 3. SIDEBAR
+# 3. SIDEBAR & START
 # ==========================================
 with st.sidebar:
     if os.path.exists(LOGO_FILE):
         st.image(LOGO_FILE, use_container_width=True)
-    
     if st.session_state.logged_in:
         st.success(f"👤 {st.session_state.current_user}")
         if st.button("🔓 Abmelden"):
             st.session_state.logged_in = False
-            st.session_state.current_user = None
             st.rerun()
-    
     st.title("Menü")
-    menu_options = ["🏠 Home", "🛡️ SafeSite-Check", "📚 BauAV Nachschlagewerk", "📋 8 Lebenswichtige Regeln"]
-    if st.session_state.logged_in and st.session_state.current_user == "admin":
-        menu_options.append("👥 Kundenverwaltung")
-    
+    menu_options = ["🏠 Home", "🛡️ SafeSite-Check"]
     selected_mode = st.radio("Wähle Ansicht:", menu_options)
     st.divider()
     if selected_mode == "🛡️ SafeSite-Check" and st.session_state.logged_in:
         if st.button("🔄 Check Neustarten"):
             st.session_state.app_step = 'screen_a'
             st.session_state.analysis_data = []
-            st.session_state.media_type = "video"
             st.session_state.media_files = []
-            st.session_state.confirmed_items = []
             st.rerun()
-    st.caption("SSD SafeSite App v21.0")
 
-# ==========================================
-# TITEL
-# ==========================================
-if os.path.exists(TITELBILD_FILE):
-    st.image(TITELBILD_FILE, use_container_width=True)
-st.markdown("<h1 style='text-align: center; color: #FF6600; font-size: 40px; margin-bottom: 30px;'>SafeSite Drohne</h1>", unsafe_allow_html=True)
-
-# ==========================================
-# LOGIK VERTEILER
-# ==========================================
+if os.path.exists(TITELBILD_FILE): st.image(TITELBILD_FILE, use_container_width=True)
+st.markdown("<h1 style='text-align: center; color: #FF6600;'>SafeSite Drohne</h1>", unsafe_allow_html=True)
 
 if selected_mode == "🏠 Home":
-    st.markdown("""
-    <div style="background-color: #E0E0E0; padding: 20px; border-radius: 10px; border-left: 5px solid #FF6600; margin-bottom: 30px;">
-        <h2 style="color: #FF6600; margin-top: 0;">Willkommen bei SafeSite Drohne</h2>
-        <p style="color: #003366; font-size: 18px; line-height: 1.5;">
-            Ihre professionelle Drohnen-Dienstleistungs-App für den Hochbau.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    st.info("Starten Sie den 'SafeSite-Check' um Fotos oder Videos zu analysieren.")
-    
-    col1, col2, col3 = st.columns(3)
-    link_insta = "https://instagram.com/safesitedrohne" 
-    link_face = "https://facebook.com/safesitedrohne"
-    link_web = "https://safesitedrohne.ch"
-    with col1: st.markdown(f'<a href="{link_insta}" target="_blank" class="social-link">📸 Instagram</a>', unsafe_allow_html=True)
-    with col2: st.markdown(f'<a href="{link_face}" target="_blank" class="social-link">👍 Facebook</a>', unsafe_allow_html=True)
-    with col3: st.markdown(f'<a href="{link_web}" target="_blank" class="social-link">🌍 Webseite</a>', unsafe_allow_html=True)
+    st.info("Bitte links SafeSite-Check wählen.")
 
 elif selected_mode == "🛡️ SafeSite-Check":
-    
     if not st.session_state.logged_in:
-        st.subheader("🔒 Geschützter Bereich")
-        col_login, col_empty = st.columns([1, 2])
-        with col_login:
-            username = st.text_input("Benutzername")
-            password = st.text_input("Passwort", type="password")
-            if st.button("Einloggen", key="login_btn"):
-                users = load_users() 
-                if username in users and users[username] == password:
-                    st.session_state.logged_in = True
-                    st.session_state.current_user = username
-                    st.rerun()
-                else:
-                    st.error("Falsche Daten.")
-        
+        st.subheader("🔒 Login")
+        u = st.text_input("User"); p = st.text_input("Pass", type="password")
+        if st.button("Login"):
+            users = load_users()
+            if u in users and users[u] == p:
+                st.session_state.logged_in = True
+                st.session_state.current_user = u
+                st.rerun()
     else:
-        # APP ABLAUF
+        # --- APP FLOW ---
         if st.session_state.app_step == 'screen_a':
-            st.subheader("Neuer Auftrag") 
+            st.subheader("Neuer Auftrag")
+            st.markdown("### Modus wählen")
+            mode = st.radio("", ["📹 Video", "📸 Fotos"], horizontal=True)
             
-            # --- AUSWAHL MODUS ---
-            st.markdown("### Was möchten Sie analysieren?")
-            upload_mode = st.radio("Modus wählen:", ["📹 Video", "📸 Fotos"], horizontal=True)
-            
-            file_list = []
-            
-            if upload_mode == "📹 Video":
-                st.info("Laden Sie hier EIN Video (mp4) hoch.")
-                video_file = st.file_uploader("Video-Datei", type=["mp4"])
-                if video_file:
-                    if st.button("Video-Analyse starten"):
-                        tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-                        tfile.write(video_file.read())
-                        file_list.append(tfile.name)
-                        tfile.close()
-                        st.session_state.media_type = "video"
-                        st.session_state.media_files = file_list
-                        st.session_state.app_step = 'screen_b'
-                        st.rerun()
-                        
-            else: # Fotos Modus
-                st.info("Laden Sie hier MEHRERE Fotos (jpg, png) hoch.")
-                photo_files = st.file_uploader("Foto-Dateien", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
-                if photo_files:
-                    if st.button(f"{len(photo_files)} Fotos analysieren"):
-                        for ufile in photo_files:
-                            suffix = os.path.splitext(ufile.name)[1]
-                            tfile = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-                            tfile.write(ufile.read())
-                            file_list.append(tfile.name)
-                            tfile.close()
-                        st.session_state.media_type = "images"
-                        st.session_state.media_files = file_list
-                        st.session_state.app_step = 'screen_b'
-                        st.rerun()
+            files = []
+            if mode == "📹 Video":
+                vf = st.file_uploader("Video (mp4)", type=["mp4"])
+                if vf and st.button("Analyse (Pro-Mode) starten"):
+                    t = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4'); t.write(vf.read()); files.append(t.name); t.close()
+                    st.session_state.media_type = "video"; st.session_state.media_files = files; st.session_state.app_step = 'screen_b'; st.rerun()
+            else:
+                pf = st.file_uploader("Fotos (jpg/png)", type=["jpg","png"], accept_multiple_files=True)
+                if pf and st.button("Analyse (Pro-Mode) starten"):
+                    for f in pf:
+                        t = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg'); t.write(f.read()); files.append(t.name); t.close()
+                    st.session_state.media_type = "images"; st.session_state.media_files = files; st.session_state.app_step = 'screen_b'; st.rerun()
 
         elif st.session_state.app_step == 'screen_b':
-            st.subheader("🔍 Scanner")
-            
+            st.subheader("🔍 Analyse (Gemini 1.5 Pro)")
             media_type = st.session_state.media_type
             media_files = st.session_state.media_files
             
-            if media_type == "video":
-                st.video(media_files[0])
-            else:
-                st.write(f"📸 {len(media_files)} Fotos geladen")
+            if media_type == "video": st.video(media_files[0])
+            else: 
                 cols = st.columns(3)
-                for i, img_path in enumerate(media_files):
-                    with cols[i % 3]:
-                        st.image(img_path, use_container_width=True, caption=f"Foto {i+1}")
+                for i,p in enumerate(media_files): 
+                    with cols[i%3]: st.image(p, caption=f"Bild {i}")
 
             if not st.session_state.analysis_data:
-                status = st.status("🤖 KI analysiert Baustelle...", expanded=True)
+                status = st.status("🤖 KI denkt nach (Pro-Modell)... Das dauert etwas länger.", expanded=True)
                 try:
-                    if "HIER_EINFÜGEN" in API_KEY:
-                        st.error("API Key fehlt!")
+                    if "HIER_EINFÜGEN" in API_KEY: st.error("API Key fehlt!")
                     else:
                         genai.configure(api_key=API_KEY)
-                        model = genai.GenerativeModel('gemini-2.5-flash')
+                        # HIER IST DER WECHSEL AUF DAS PRO MODELL!
+                        model = genai.GenerativeModel('gemini-1.5-pro') 
+                        
+                        # DER PROMPT IST JETZT EINE CHECKLISTE
+                        checklist_prompt = """
+                        Du bist ein strenger Schweizer Bau-Sicherheitsexperte (SiBe).
+                        Analysiere das Bildmaterial GENAU nach BauAV und SUVA Regeln.
+                        Gehe wie folgt vor (Checkliste):
+                        1. ABSTURZSICHERUNG: Fehlen Seitenschutz/Geländer an Kanten (>2m)? Sind Öffnungen offen?
+                        2. GERÜSTE: Fehlen Bordbretter? Sind Beläge lückenhaft? Fehlen Verankerungen?
+                        3. GRÄBEN: Sind Gräben (>1.5m) ungesichert? Fehlen Zugänge?
+                        4. PSA: Tragen ALLE Arbeiter Helme? Warnwesten?
+                        5. LEITERN: Sind Leitern ungesichert oder kaputt?
+                        
+                        Gib JEDEN Verstoß aus, den du findest (auch kleine). Sei kritisch!
+                        Ignoriere die Begrenzung auf 3. Finde so viele wie da sind.
+                        
+                        JSON Format: 
+                        [{"kategorie": "...", "prioritaet": "Hoch/Mittel", "mangel": "...", "verstoss": "BauAV Art. ...", "massnahme": "...", "zeitstempel_sekunden": 0, "bild_index": 0}]
+                        """
                         
                         if media_type == "video":
-                            status.write("Video Upload zu Google...")
-                            video_file = genai.upload_file(media_files[0])
-                            while video_file.state.name == "PROCESSING":
-                                time.sleep(1)
-                                video_file = genai.get_file(video_file.name)
-                            status.write("Suche Verstösse...")
-                            # --- NEUER PROMPT FÜR VIDEO ---
-                            prompt = """
-                            Analysiere das Video streng nach BauAV/SUVA.
-                            Identifiziere ALLE sichtbaren Sicherheitsmängel (Anzahl dynamisch: 1 bis 10 Mängel).
-                            Gib nicht stur 3 zurück, sondern alles was du findest.
-                            JSON Format: [{"kategorie": "...", "prioritaet": "Hoch", "mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 10}]
-                            """
-                            response = model.generate_content([video_file, prompt], generation_config={"response_mime_type": "application/json"})
-                            st.session_state.analysis_data = json.loads(clean_json_string(response.text))
+                            vf = genai.upload_file(media_files[0])
+                            while vf.state.name == "PROCESSING": time.sleep(1)
+                            res = model.generate_content([vf, checklist_prompt], generation_config={"response_mime_type": "application/json"})
                         else:
-                            status.write("Analysiere Fotos...")
-                            image_parts = []
-                            for path in media_files:
-                                image_parts.append(Image.open(path))
-                            # --- NEUER PROMPT FÜR FOTOS ---
-                            prompt = """
-                            Du bist Schweizer Bau-Sicherheitsexperte (SiBe).
-                            Analysiere diese Bilder nach BauAV/SUVA.
-                            Identifiziere ALLE sichtbaren Sicherheitsmängel (Anzahl dynamisch: 1 bis 10 Mängel).
-                            Gib nicht stur 3 zurück, sondern alles was du findest.
-                            WICHTIG: Gib im Feld 'bild_index' an, welches Bild gemeint ist (0 = das erste, 1 = das zweite usw.).
-                            JSON Format: 
-                            [{"kategorie": "...", "prioritaet": "Hoch", "mangel": "...", "verstoss": "...", "massnahme": "...", "bild_index": 0}]
-                            """
-                            content_list = [prompt] + image_parts
-                            response = model.generate_content(content_list, generation_config={"response_mime_type": "application/json"})
-                            st.session_state.analysis_data = json.loads(clean_json_string(response.text))
-                            
-                        status.update(label="Fertig!", state="complete", expanded=False)
-                except Exception as e:
-                    st.error(f"Fehler: {e}")
-            
+                            imgs = [Image.open(p) for p in media_files]
+                            res = model.generate_content([checklist_prompt] + imgs, generation_config={"response_mime_type": "application/json"})
+                        
+                        st.session_state.analysis_data = json.loads(clean_json_string(res.text))
+                        status.update(label="Fertig!", state="complete")
+                except Exception as e: st.error(f"Fehler: {e}")
+
             if st.session_state.analysis_data:
-                st.markdown("### ⚠️ Ergebnisse prüfen")
-                with st.form("validation_form"):
+                with st.form("val"):
                     confirmed = []
                     for i, item in enumerate(st.session_state.analysis_data):
-                        col_img, col_text = st.columns([1, 2])
-                        with col_img:
+                        c1, c2 = st.columns([1,2])
+                        with c1:
                             if media_type == "video":
                                 img = extract_frame(media_files[0], item.get('zeitstempel_sekunden', 0))
-                                if img is not None: st.image(img, use_container_width=True)
+                                if img: st.image(img)
                             else:
                                 idx = item.get('bild_index', 0)
-                                if idx < len(media_files):
-                                    st.image(media_files[idx], use_container_width=True)
-                        with col_text:
-                            st.markdown(f"**{i+1}. {item.get('kategorie')}**")
-                            st.write(f"🛑 {item.get('mangel')}")
-                            st.caption(f"⚖️ {item.get('verstoss')}")
-                            if st.checkbox(f"✅ Bestätigen", value=True, key=f"check_{i}"):
-                                confirmed.append(item)
+                                if idx < len(media_files): st.image(media_files[idx])
+                        with c2:
+                            st.error(f"{item.get('mangel')}")
+                            st.caption(item.get('verstoss'))
+                            if st.checkbox("Aufnehmen", True, key=f"c{i}"): confirmed.append(item)
                         st.divider()
-                    if st.form_submit_button("✅ Prüfung abschliessen & Bericht erstellen"):
+                    if st.form_submit_button("Bericht erstellen"):
                         st.session_state.confirmed_items = confirmed
                         st.session_state.app_step = 'screen_c'
                         st.rerun()
 
         elif st.session_state.app_step == 'screen_c':
-            st.subheader("📄 Bericht")
-            count = len(st.session_state.confirmed_items)
-            
-            if count > 0:
-                pdf_file = create_smart_pdf(st.session_state.confirmed_items, st.session_state.media_type, st.session_state.media_files)
-                col1, col2 = st.columns(2)
-                with col1:
-                    with open(pdf_file, "rb") as f:
-                        st.download_button("📥 PDF Speichern", f, "SSD_Bericht.pdf", "application/pdf", use_container_width=True)
-                with col2:
-                    subject = "Sicherheitsbericht SSD SafeSite"
-                    body = f"Grüezi,\n\nanbei der Bericht.\n\nSSD Team"
-                    mailto = f"mailto:?subject={urllib.parse.quote(subject)}&body={urllib.parse.quote(body)}"
-                    st.link_button("📧 PDF senden", mailto, use_container_width=True)
-            else:
-                st.success("Keine Mängel ausgewählt.")
-                
-            st.divider()
-            if st.button("🏠 Neuer Flug"):
-                st.session_state.app_step = 'screen_a'
-                st.session_state.analysis_data = []
-                st.session_state.media_files = []
-                st.session_state.confirmed_items = []
-                st.rerun()
-
-# --- ADMIN / KUNDEN ---
-elif st.session_state.logged_in and st.session_state.current_user == "admin" and selected_mode == "👥 Kundenverwaltung":
-    st.subheader("👥 Kundenverwaltung")
-    with st.expander("➕ Neuer Kunde"):
-        with st.form("new_user"):
-            nu = st.text_input("Name")
-            np = st.text_input("Code")
-            if st.form_submit_button("Speichern"):
-                save_user(nu, np); st.rerun()
-    st.json(load_users())
-
-elif selected_mode == "📚 BauAV Nachschlagewerk":
-    st.subheader("📚 BauAV")
-    # ... Hier könnte dein BauAV Code stehen ...
-    st.info("BauAV Datenbank")
-
-elif selected_mode == "📋 8 Lebenswichtige Regeln":
-    st.subheader("🇨🇭 SUVA Regeln")
-    # ... Hier könnten deine Regeln stehen ...
-    st.info("SUVA Regeln")
+            st.subheader("Bericht fertig")
+            if st.session_state.confirmed_items:
+                pdf = create_smart_pdf(st.session_state.confirmed_items, st.session_state.media_type, st.session_state.media_files)
+                with open(pdf, "rb") as f: st.download_button("PDF Download", f, "Bericht.pdf")
+            if st.button("Neuer Auftrag"):
+                st.session_state.app_step = 'screen_a'; st.session_state.analysis_data = []; st.session_state.media_files = []; st.rerun()
