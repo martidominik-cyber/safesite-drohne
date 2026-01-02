@@ -55,11 +55,10 @@ TITELBILD_FILE = "titelbild.png"
 USER_DB_FILE = "users.json"
 
 # ==========================================
-# 1. USER MANAGEMENT (Wieder da!)
+# 1. USER MANAGEMENT
 # ==========================================
 def load_users():
     if not os.path.exists(USER_DB_FILE):
-        # Standard Admin erstellen, falls Datei fehlt
         default_db = {"admin": "1234"}
         with open(USER_DB_FILE, "w") as f: json.dump(default_db, f)
         return default_db
@@ -112,7 +111,7 @@ class PDF(FPDF):
 def create_pdf(data, m_type, m_files):
     pdf = PDF(); pdf.add_page()
     pdf.set_font("Arial", '', 10); pdf.set_text_color(0,0,0)
-    pdf.cell(0, 5, f"Datum: {date.today().strftime('%d.%m.%Y')} | KI-Analyse: Gemini 1.5 Pro", ln=True)
+    pdf.cell(0, 5, f"Datum: {date.today().strftime('%d.%m.%Y')} | KI-Analyse: Gemini Flash", ln=True)
     pdf.ln(5)
     
     for i, item in enumerate(data):
@@ -192,11 +191,7 @@ with st.sidebar:
             st.rerun()
     
     st.title("Menü")
-    
-    # Menüoptionen definieren
     options = ["🏠 Home", "🛡️ SafeSite-Check", "📚 BauAV Nachschlagewerk", "📋 8 Lebenswichtige Regeln"]
-    
-    # Admin bekommt Extra-Menü
     if st.session_state.logged_in and st.session_state.current_user == "admin":
         options.append("👥 Kundenverwaltung")
         
@@ -210,15 +205,15 @@ with st.sidebar:
             st.rerun()
 
 # ==========================================
-# 4. HAUPTBEREICH & LOGIN LOGIK
+# 4. HAUPTBEREICH
 # ==========================================
 if os.path.exists(TITELBILD_FILE):
     st.image(TITELBILD_FILE, use_container_width=True)
 st.title("SafeSite Drohne")
 
-# --- LOGIN SCREEN (Wenn nicht eingeloggt) ---
+# --- LOGIN ---
 if not st.session_state.logged_in:
-    st.info("Bitte anmelden, um fortzufahren.")
+    st.info("Bitte anmelden.")
     col1, col2 = st.columns([1,2])
     with col1:
         u = st.text_input("Benutzername")
@@ -230,12 +225,10 @@ if not st.session_state.logged_in:
                 st.session_state.current_user = u
                 st.rerun()
             else:
-                st.error("Benutzername oder Passwort falsch.")
+                st.error("Falsch.")
 
 else:
-    # --- EINGELOGGT: PROGRAMM START ---
-
-    # 1. HOME
+    # --- APP START ---
     if menu == "🏠 Home":
         st.info(f"Willkommen zurück, {st.session_state.current_user}!")
         st.write("Starten Sie einen neuen Auftrag über das Menü links.")
@@ -244,10 +237,9 @@ else:
         with col2: st.link_button("👍 Facebook", "https://facebook.com")
         with col3: st.link_button("🌍 Webseite", "https://safesitedrohne.ch")
 
-    # 2. CHECK (DIE HAUPTFUNKTION)
     elif menu == "🛡️ SafeSite-Check":
         if st.session_state.step == 1:
-            st.subheader("Neuer Auftrag (Pro-Modell)")
+            st.subheader("Neuer Auftrag")
             if not WORD_AVAILABLE: st.warning("Word-Export inaktiv (Neustart erforderlich)")
 
             mode = st.radio("Upload:", ["📹 Video", "📸 Fotos"], horizontal=True)
@@ -268,7 +260,7 @@ else:
                         st.session_state.type = "images"; st.session_state.files = files; st.session_state.step = 2; st.rerun()
 
         elif st.session_state.step == 2:
-            st.subheader("🕵️‍♂️ Gemini 1.5 Pro Analyse")
+            st.subheader("🕵️‍♂️ KI-Scanner läuft...")
             if st.session_state.type == "video": st.video(st.session_state.files[0])
             else:
                 cols = st.columns(3)
@@ -276,25 +268,26 @@ else:
                     with cols[i%3]: st.image(f, caption=f"Bild {i+1}")
 
             if not st.session_state.data:
-                with st.spinner("Analysiere Baustelle KRITISCH... (kann 30-60s dauern)"):
+                with st.spinner("Suche Mängel (Flash Modell)..."):
                     try:
                         genai.configure(api_key=API_KEY)
-                        model = genai.GenerativeModel('gemini-1.5-pro')
+                        # HIER IST DER FIX: Wir nehmen wieder das funktionierende Modell
+                        model = genai.GenerativeModel('gemini-1.5-flash')
                         
                         prompt = """
-                        Du bist ein strenger Schweizer Bau-Sicherheitsprüfer (SiBe).
-                        Analysiere die Bilder/Video KRITISCH nach BauAV und SUVA.
+                        Du bist Schweizer Bau-Sicherheitsexperte (SiBe).
+                        Analysiere die Aufnahmen streng nach BauAV/SUVA.
                         WICHTIG:
-                        1. Suche gezielt nach LEBENSGEFAHR (Gräben, Absturz, PSA).
-                        2. Liste ALLE Mängel auf (kein Limit).
-                        3. Sei konkret und professionell.
+                        1. Finde ALLE sichtbaren Mängel (mindestens 5-10, wenn vorhanden).
+                        2. Ignoriere Limits. Liste alles auf.
+                        3. Achte auf: Absturz, Gräben, PSA, Gerüste.
                         Antworte NUR als JSON Liste:
                         [{"mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 0, "bild_index": 0}]
                         """
                         
                         if st.session_state.type == "video":
                             f = genai.upload_file(st.session_state.files[0])
-                            # Warten fix
+                            # Warteschleife (Fix für Hänger)
                             while f.state.name == "PROCESSING":
                                 time.sleep(2)
                                 f = genai.get_file(f.name)
@@ -347,46 +340,33 @@ else:
             if st.button("Neuer Auftrag"):
                 st.session_state.step = 1; st.session_state.data = []; st.rerun()
 
-    # 3. KUNDENVERWALTUNG (NUR ADMIN)
     elif menu == "👥 Kundenverwaltung":
         st.subheader("Benutzer verwalten")
         users = load_users()
-        
-        # Neuen User anlegen
         with st.form("new_user"):
-            st.write("Neuen Kunden anlegen:")
             nu = st.text_input("Name")
             np = st.text_input("Passwort")
             if st.form_submit_button("Speichern"):
                 if nu and np:
                     save_user(nu, np)
-                    st.success(f"User {nu} angelegt!")
                     st.rerun()
-        
         st.divider()
-        st.write("Aktuelle Benutzer:")
-        for user, pw in users.items():
-            c1, c2, c3 = st.columns([2,2,1])
-            c1.write(f"👤 **{user}**")
-            c2.text("******") # Passwort verstecken
-            if user != "admin":
-                if c3.button("Löschen", key=f"del_{user}"):
-                    delete_user(user)
-                    st.rerun()
+        for user in users:
+            st.write(f"👤 {user}")
+            if user != "admin" and st.button(f"Löschen {user}"):
+                delete_user(user)
+                st.rerun()
 
-    # 4. BAUAV
     elif menu == "📚 BauAV Nachschlagewerk":
         st.subheader("📚 BauAV Datenbank")
         def bauav_card(titel, art, inhalt):
             with st.container(border=True):
                 st.markdown(f"#### :orange[{titel}] <span style='color:grey; font-size:0.8em'>({art})</span>", unsafe_allow_html=True)
                 st.write(inhalt)
-
         bauav_card("Absturzsicherung", "Art. 18 ff.", "Ab 2.00m Absturzhöhe zwingend Seitenschutz.")
         bauav_card("Gräben", "Art. 68 ff.", "Ab 1.50m Tiefe spriessen.")
         bauav_card("PSA", "Art. 6", "Helmtragepflicht.")
 
-    # 5. REGELN
     elif menu == "📋 8 Lebenswichtige Regeln":
         st.subheader("🇨🇭 SUVA Regeln")
         regeln = [
