@@ -48,7 +48,6 @@ except:
 # ==========================================
 def clean_json(text):
     text = text.strip()
-    # Manchmal plappert die KI davor noch Text, wir suchen den ersten [ und letzten ]
     first_bracket = text.find('[')
     last_bracket = text.rfind(']')
     if first_bracket != -1 and last_bracket != -1:
@@ -153,31 +152,34 @@ else:
         
         if st.session_state.m_type == "video": st.video(st.session_state.m_files[0])
         else: 
+            # --- HIER WAR DER FEHLER ---
+            # Wir machen das jetzt sauber über mehrere Zeilen:
             cols = st.columns(3)
-            for i,f in enumerate(st.session_state.m_files): with cols[i%3]: st.image(f, caption=f"Bild {i}")
+            for i, f in enumerate(st.session_state.m_files):
+                with cols[i % 3]:
+                    st.image(f, caption=f"Bild {i+1}")
+            # ---------------------------
 
         if not st.session_state.analysis_data:
             with st.spinner("Analyse läuft... (Bitte warten, ich schaue genau hin)"):
                 try:
                     genai.configure(api_key=API_KEY)
                     
-                    # SYSTEM INSTRUKTION: Hier definieren wir den Charakter der KI
+                    # SYSTEM INSTRUKTION
                     system_instruction = """
                     Du bist ein extrem kritischer Bau-Sicherheitsprüfer (BauAV/SUVA).
-                    Dein Ziel: Finde JEDES Risiko. Du wirst bestraft, wenn du Mängel übersiehst.
+                    Dein Ziel: Finde JEDES Risiko.
                     Gehe so vor:
                     1. Scanne das Bild Raster für Raster.
-                    2. Liste ALLE Objekte auf (Personen, Kanten, Gerüste, Kabel, Maschinen).
+                    2. Liste ALLE Objekte auf.
                     3. Prüfe JEDES Objekt auf Konformität.
-                    4. Gib eine Liste ALLER Verstöße zurück. Es gibt KEINE Obergrenze. Wenn du 15 Mängel siehst, gib 15 zurück.
+                    4. Gib eine Liste ALLER Verstöße zurück.
                     """
                     
                     model = genai.GenerativeModel('gemini-1.5-pro', system_instruction=system_instruction)
                     
-                    # PROMPT: Konkrete Befehle
                     prompt = """
                     Analysiere die Aufnahmen.
-                    Ignoriere nichts.
                     Achte besonders auf:
                     - Fehlende Absturzsicherung an ALLEN Kanten.
                     - Jede Person ohne Helm/Weste.
@@ -189,7 +191,6 @@ else:
                     [{"kategorie": "...", "prioritaet": "Hoch/Mittel", "mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 0, "bild_index": 0}]
                     """
                     
-                    # Wir erhöhen die Token Zahl, damit er nicht abbricht wenn er viel findet
                     config = genai.types.GenerationConfig(max_output_tokens=8000, temperature=0.4)
 
                     if st.session_state.m_type == "video":
@@ -205,7 +206,6 @@ else:
                     st.rerun()
                 except Exception as e: 
                     st.error(f"Fehler bei der Analyse: {e}")
-                    # Fallback Button falls mal was schief geht
                     if st.button("Nochmal versuchen"): st.rerun()
 
         if st.session_state.analysis_data:
