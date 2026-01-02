@@ -23,20 +23,29 @@ except ImportError:
 st.set_page_config(page_title="SafeSite Drohne", page_icon="logo.jpg", layout="wide", initial_sidebar_state="expanded")
 
 # --- HIER DEINEN GITHUB-NAMEN EINTRAGEN ---
-LOGO_URL_GITHUB = "https://raw.githubusercontent.com/DEIN_BENUTZERNAME/safesite-drohne/main/logo.jpg?v=1"
+LOGO_URL_GITHUB = "https://raw.githubusercontent.com/martidominik-cyber/safesite-drohne/main/logo.jpg?v=1"
 # ------------------------------------------
 
-# CSS
+# CSS: Designanpassungen für Dark Mode & Orange Akzente
 st.markdown(f"""
 <style>
     .stAppDeployButton {{display: none;}}
     footer {{visibility: hidden;}}
+    
+    /* Hauptfarbe Orange definieren */
     :root {{ --primary: #FF6600; }}
+    
+    /* Buttons in Orange */
     .stButton > button {{
         background-color: #FF6600 !important;
         color: white !important;
         border: none;
         font-weight: bold;
+    }}
+    
+    /* Aktives Menü-Item Orange hervorheben */
+    div[data-testid="stRadio"] > label > div[data-checked="true"] {{
+        background-color: #FF6600 !important;
     }}
 </style>
 <link rel="apple-touch-icon" href="{LOGO_URL_GITHUB}">
@@ -218,12 +227,11 @@ elif menu == "🛡️ SafeSite-Check":
                 with cols[i%3]: st.image(f, caption=f"Bild {i+1}")
 
         if not st.session_state.data:
-            with st.spinner("Analysiere Baustelle KRITISCH... (kann 30s dauern)"):
+            with st.spinner("Analysiere Baustelle KRITISCH... (kann 30-60s dauern)"):
                 try:
                     genai.configure(api_key=API_KEY)
                     model = genai.GenerativeModel('gemini-1.5-pro')
                     
-                    # HIER WAR DER FEHLER - JETZT KORRIGIERT:
                     prompt = """
                     Du bist ein strenger Schweizer Bau-Sicherheitsprüfer (SiBe).
                     Analysiere die Bilder/Video KRITISCH nach BauAV und SUVA.
@@ -242,7 +250,11 @@ elif menu == "🛡️ SafeSite-Check":
                     
                     if st.session_state.type == "video":
                         f = genai.upload_file(st.session_state.files[0])
-                        while f.state.name == "PROCESSING": time.sleep(1)
+                        # Warten bis Video ready ist
+                        while f.state.name == "PROCESSING":
+                            time.sleep(2)
+                            f = genai.get_file(f.name)
+                        
                         res = model.generate_content([f, prompt], generation_config={"response_mime_type": "application/json"})
                     else:
                         imgs = [Image.open(p) for p in st.session_state.files]
@@ -268,7 +280,8 @@ elif menu == "🛡️ SafeSite-Check":
                             idx = item.get('bild_index', 0)
                             if idx < len(st.session_state.files): st.image(st.session_state.files[idx])
                     with c2:
-                        st.markdown(f"**{i+1}. {item['mangel']}**")
+                        # Überschrift Orange machen
+                        st.markdown(f"#### :orange[{i+1}. {item['mangel']}]")
                         st.caption(item.get('verstoss'))
                         st.write(item.get('massnahme'))
                         if st.checkbox("Aufnehmen", True, key=str(i)): confirmed.append(item)
@@ -292,17 +305,16 @@ elif menu == "🛡️ SafeSite-Check":
         if st.button("Neuer Auftrag"):
             st.session_state.step = 1; st.session_state.data = []; st.rerun()
 
-# --- BAUAV ---
+# --- BAUAV (DESIGN FIX: JETZT PASSEND ZUM DARK MODE) ---
 elif menu == "📚 BauAV Nachschlagewerk":
     st.subheader("📚 BauAV Datenbank")
     
+    # Neue Funktion nutzt jetzt native Streamlit Container -> Passt sich Dark Mode an!
     def bauav_card(titel, art, inhalt):
-        st.markdown(f"""
-        <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #FF6600; margin-bottom: 20px;">
-            <h4 style="color: #FF6600; margin:0;">{titel} <span style="font-size:0.8em; color:#666;">({art})</span></h4>
-            <p style="margin-top:10px;">{inhalt}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        with st.container(border=True):
+            # Titel in Orange, Art in Grau
+            st.markdown(f"#### :orange[{titel}] <span style='color:grey; font-size:0.8em'>({art})</span>", unsafe_allow_html=True)
+            st.write(inhalt)
 
     bauav_card("Absturzsicherung", "Art. 18 ff.", "Ab 2.00m Absturzhöhe zwingend Seitenschutz (Holm, Zwischenholm, Bordbrett).")
     bauav_card("Gräben & Baugruben", "Art. 68 ff.", "Ab 1.50m Tiefe müssen Wände geböscht oder verspriesst werden.")
@@ -331,5 +343,6 @@ elif menu == "📋 8 Lebenswichtige Regeln":
                 if os.path.exists(r["img"]): st.image(r["img"])
                 else: st.info("Bild fehlt")
             with c2:
-                st.markdown(f"**{r['t']}**")
+                # Titel in Orange
+                st.markdown(f"#### :orange[{r['t']}]")
                 st.write(r["txt"])
