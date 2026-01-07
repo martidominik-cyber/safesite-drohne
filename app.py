@@ -69,6 +69,42 @@ def extract_frame(video_path, timestamp):
         if ret: return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     except: return None
 
+def convert_image_to_supported_format(image_path):
+    """
+    Konvertiert Bilder (insbesondere MPO) in ein von Gemini unterstütztes Format (JPEG/PNG).
+    """
+    try:
+        img = Image.open(image_path)
+        img_format = img.format or ''
+        
+        # Wenn das Bild MPO ist oder ein nicht unterstütztes Format, konvertiere es
+        if img_format.upper() == 'MPO' or (img_format and img_format.upper() not in ['JPEG', 'PNG', 'WEBP', 'JPG']):
+            # Konvertiere zu RGB (falls notwendig)
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            # Speichere als temporäre JPEG-Datei
+            temp_path = image_path.replace('.mpo', '.jpg').replace('.MPO', '.jpg')
+            if temp_path == image_path:  # Falls kein .mpo gefunden wurde
+                base_name = image_path.rsplit('.', 1)[0] if '.' in image_path else image_path
+                temp_path = base_name + '_converted.jpg'
+            
+            img.save(temp_path, 'JPEG', quality=95)
+            return temp_path
+        
+        # Wenn bereits unterstütztes Format, prüfe ob RGB-Modus
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+            base_name = image_path.rsplit('.', 1)[0] if '.' in image_path else image_path
+            temp_path = base_name + '_converted.jpg'
+            img.save(temp_path, 'JPEG', quality=95)
+            return temp_path
+        
+        return image_path
+    except Exception as e:
+        # Falls Konvertierung fehlschlägt, gib Original zurück
+        return image_path
+
 # --- PDF GENERATOR ---
 class PDF(FPDF):
     def header(self):
@@ -186,10 +222,21 @@ with st.sidebar:
     st.title("SafeSite Drohne")
     
     # Navigation
+    page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV"]
+    
+    # Index basierend auf current_page bestimmen
+    page_index_map = {
+        'home': 0,
+        'safesite': 1,
+        'suva': 2,
+        'bauav': 3
+    }
+    current_index = page_index_map.get(st.session_state.current_page, 0)
+    
     page = st.radio(
         "Bereich wählen:",
-        ["🏠 Startseite", "🔍 SafeSite-Check"],
-        index=0 if st.session_state.current_page == 'home' else 1,
+        page_options,
+        index=current_index,
         key="nav"
     )
     
@@ -197,6 +244,10 @@ with st.sidebar:
         st.session_state.current_page = 'home'
     elif page == "🔍 SafeSite-Check":
         st.session_state.current_page = 'safesite'
+    elif page == "📋 SUVA Regeln":
+        st.session_state.current_page = 'suva'
+    elif page == "⚖️ BauAV":
+        st.session_state.current_page = 'bauav'
     
     # Logout nur anzeigen, wenn im SafeSite-Check eingeloggt
     if st.session_state.current_page == 'safesite' and st.session_state.logged_in:
@@ -204,18 +255,6 @@ with st.sidebar:
         if st.button("Logout"): 
             st.session_state.logged_in = False
             st.rerun()
-    
-    # SUVA REGELN & BAUAV
-    st.divider()
-    st.subheader("📋 SUVA Regeln & BauAV")
-    
-    # Erweiterbarer Bereich für die Regeln
-    with st.expander("Regeln anzeigen", expanded=False):
-        regel_files = [f"regel_{i}.png" for i in range(1, 9)]
-        for regel_file in regel_files:
-            if os.path.exists(regel_file):
-                st.image(regel_file, use_container_width=True)
-                st.markdown("---")
 
 # HAUPTBEREICH
 if st.session_state.current_page == 'home':
@@ -308,8 +347,26 @@ elif st.session_state.current_page == 'safesite':
                                     while f.state.name == "PROCESSING": time.sleep(1)
                                     res = model.generate_content([f, prompt], generation_config={"response_mime_type": "application/json"})
                                 else:
-                                    imgs = [Image.open(p) for p in st.session_state.m_files]
+                                    # Konvertiere Bilder zu unterstütztem Format (z.B. MPO -> JPEG)
+                                    converted_files = []
+                                    temp_files_to_cleanup = []
+                                    for p in st.session_state.m_files:
+                                        converted = convert_image_to_supported_format(p)
+                                        if converted != p:
+                                            temp_files_to_cleanup.append(converted)
+                                        converted_files.append(converted)
+                                    
+                                    # Öffne konvertierte Bilder
+                                    imgs = [Image.open(p) for p in converted_files]
                                     res = model.generate_content([prompt] + imgs, generation_config={"response_mime_type": "application/json"})
+                                    
+                                    # Aufräumen: Lösche temporäre konvertierte Dateien
+                                    for temp_file in temp_files_to_cleanup:
+                                        try:
+                                            if os.path.exists(temp_file):
+                                                os.remove(temp_file)
+                                        except:
+                                            pass
                                 
                                 used_model = model_name
                                 if model_name != 'gemini-3-pro-preview':
@@ -381,3 +438,25 @@ elif st.session_state.current_page == 'safesite':
                 st.session_state.analysis_data = []
                 st.session_state.m_files = []
                 st.rerun()
+
+elif st.session_state.current_page == 'suva':
+    # SUVA REGELN
+    st.header("📋 SUVA Regeln")
+    st.write("Hier finden Sie die wichtigsten SUVA-Regeln für die Baustellensicherheit.")
+    
+    regel_files = [f"regel_{i}.png" for i in range(1, 9)]
+    for regel_file in regel_files:
+        if os.path.exists(regel_file):
+            st.image(regel_file, use_container_width=True)
+            st.markdown("---")
+
+elif st.session_state.current_page == 'bauav':
+    # BAUAV
+    st.header("⚖️ BauAV (Bauarbeitenverordnung)")
+    st.write("Hier finden Sie die wichtigsten BauAV-Regeln für die Baustellensicherheit.")
+    
+    regel_files = [f"regel_{i}.png" for i in range(1, 9)]
+    for regel_file in regel_files:
+        if os.path.exists(regel_file):
+            st.image(regel_file, use_container_width=True)
+            st.markdown("---")
