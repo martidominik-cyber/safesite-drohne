@@ -8,9 +8,9 @@ from fpdf import FPDF
 import time
 from datetime import date
 from PIL import Image
-import urllib.parse # Wichtig für den Email-Link
+import urllib.parse 
 
-# Falls python-docx fehlt, fangen wir den Fehler ab
+# Word-Modul sicher laden
 try:
     from docx import Document
     from docx.shared import Inches
@@ -75,49 +75,34 @@ def extract_frame(video_path, timestamp):
         if ret: return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     except: return None
 
-def convert_image_to_supported_format(image_path):
-    try:
-        img = Image.open(image_path)
-        img_format = img.format or ''
-        if img_format.upper() == 'MPO' or (img_format and img_format.upper() not in ['JPEG', 'PNG', 'WEBP', 'JPG']):
-            if img.mode != 'RGB': img = img.convert('RGB')
-            temp_path = image_path.replace('.mpo', '.jpg').replace('.MPO', '.jpg')
-            if temp_path == image_path: temp_path = image_path + '_converted.jpg'
-            img.save(temp_path, 'JPEG', quality=95)
-            return temp_path
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
-            temp_path = image_path.rsplit('.', 1)[0] + '_converted.jpg'
-            img.save(temp_path, 'JPEG', quality=95)
-            return temp_path
-        return image_path
-    except Exception as e:
-        return image_path
-
-# --- PDF GENERATOR (NEUES DESIGN: LOGO RECHTS) ---
+# --- PDF GENERATOR ---
 class PDF(FPDF):
     def header(self):
-        # Logo oben RECHTS platzieren (x=160, y=8)
+        # Logo oben RECHTS platzieren
         if os.path.exists(LOGO_FILE):
             try: self.image(LOGO_FILE, 160, 8, 40)
             except: pass
         self.ln(5)
 
+def make_safe_text(text):
+    """Entfernt Emojis für das PDF, damit es nicht abstürzt"""
+    return text.encode('latin-1', 'ignore').decode('latin-1')
+
 def create_pdf(data, m_type, m_files, projekt, inspektor, status):
     pdf = PDF()
     pdf.add_page()
     
-    # --- HEADER BEREICH (Wie Screenshot) ---
+    # --- HEADER BEREICH ---
     pdf.set_font("Arial", 'B', 20)
     pdf.set_text_color(0, 0, 0)
     pdf.cell(0, 10, "SICHERHEITS-INSPEKTION (DROHNE)", ln=True)
     pdf.ln(8)
     
-    # Metadaten Tabelle
+    # Metadaten Tabelle (Text bereinigen mit make_safe_text)
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(35, 8, "Projekt:", ln=0)
     pdf.set_font("Arial", '', 11)
-    pdf.cell(0, 8, projekt, ln=True)
+    pdf.cell(0, 8, make_safe_text(projekt), ln=True)
     
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(35, 8, "Datum:", ln=0)
@@ -127,20 +112,23 @@ def create_pdf(data, m_type, m_files, projekt, inspektor, status):
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(35, 8, "Inspektor:", ln=0)
     pdf.set_font("Arial", '', 11)
-    pdf.cell(0, 8, f"{inspektor} (SafeSite Drohne)", ln=True)
+    pdf.cell(0, 8, make_safe_text(f"{inspektor} (SafeSite Drohne)"), ln=True)
     
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(35, 8, "Status:", ln=0)
     pdf.set_font("Arial", '', 11)
+    
     # Status Farbe (Orange bei Massnahmen)
     if "Massnahmen" in status: pdf.set_text_color(255, 153, 51)
     else: pdf.set_text_color(0, 153, 0)
-    pdf.cell(0, 8, status, ln=True)
+    
+    # WICHTIG: Emojis entfernen für PDF
+    pdf.cell(0, 8, make_safe_text(status), ln=True)
     pdf.set_text_color(0, 0, 0) # Reset
     
     pdf.ln(10)
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, "1. ZUSAMMENFASSUNG / MÄNGELLISTE", ln=True)
+    pdf.cell(0, 10, "1. ZUSAMMENFASSUNG / MAENGELLISTE", ln=True)
     pdf.ln(5)
     
     # --- INHALT ---
@@ -148,15 +136,23 @@ def create_pdf(data, m_type, m_files, projekt, inspektor, status):
         if pdf.get_y() > 220: pdf.add_page()
         
         pdf.set_font("Arial", 'B', 12); pdf.set_text_color(204, 0, 0)
-        titel = f"{i+1}. {item.get('kategorie', 'Mangel')} ({item.get('prioritaet', 'Mittel')})"
-        pdf.cell(0, 8, titel.encode('latin-1', 'replace').decode('latin-1'), ln=True)
+        # Auch hier Texte bereinigen
+        kat = make_safe_text(item.get('kategorie', 'Mangel'))
+        prio = make_safe_text(item.get('prioritaet', 'Mittel'))
+        titel = f"{i+1}. {kat} ({prio})"
+        pdf.cell(0, 8, titel, ln=True)
         
         pdf.set_font("Arial", '', 10); pdf.set_text_color(0,0,0)
-        pdf.multi_cell(0, 5, f"Mangel: {item.get('mangel', '-').encode('latin-1', 'replace').decode('latin-1')}")
+        
+        mangel = make_safe_text(item.get('mangel', '-'))
+        verstoss = make_safe_text(item.get('verstoss', '-'))
+        massnahme = make_safe_text(item.get('massnahme', '-'))
+        
+        pdf.multi_cell(0, 5, f"Mangel: {mangel}")
         pdf.ln(2)
-        pdf.multi_cell(0, 5, f"Verstoss: {item.get('verstoss', '-').encode('latin-1', 'replace').decode('latin-1')}")
+        pdf.multi_cell(0, 5, f"Verstoss: {verstoss}")
         pdf.ln(2)
-        pdf.multi_cell(0, 5, f"Massnahme: {item.get('massnahme', '-').encode('latin-1', 'replace').decode('latin-1')}")
+        pdf.multi_cell(0, 5, f"Massnahme: {massnahme}")
         pdf.ln(5)
         
         # Bild
@@ -178,7 +174,7 @@ def create_pdf(data, m_type, m_files, projekt, inspektor, status):
             pdf.ln(10)
             if temp_created and os.path.exists(img_path): os.remove(img_path)
             
-    # --- FOOTER / UNTERSCHRIFTEN ---
+    # --- FOOTER ---
     if pdf.get_y() > 200: pdf.add_page()
     pdf.ln(15)
     pdf.set_font("Arial", 'B', 14)
@@ -189,11 +185,10 @@ def create_pdf(data, m_type, m_files, projekt, inspektor, status):
     pdf.multi_cell(0, 5, "Hinweis: Dieser Bericht dient als visuelle Unterstuetzung. Er entbindet die zustaendige Bauleitung nicht von der gesetzlichen Kontrollpflicht.")
     pdf.ln(20)
     
-    # Linien
     pdf.set_font("Arial", 'B', 11); pdf.set_text_color(0,0,0)
     pdf.cell(40, 10, "Erstellt durch:", ln=0)
     pdf.set_font("Arial", '', 11)
-    pdf.cell(80, 10, f"{inspektor} (SafeSite)", ln=0)
+    pdf.cell(80, 10, make_safe_text(f"{inspektor} (SafeSite)"), ln=0)
     pdf.cell(0, 10, "__________________________ (Datum/Unterschrift)", ln=True)
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 11)
@@ -206,25 +201,23 @@ def create_pdf(data, m_type, m_files, projekt, inspektor, status):
     pdf.output(out)
     return out
 
-# --- WORD GENERATOR (NEUES DESIGN) ---
+# --- WORD GENERATOR ---
 def create_word(data, m_type, m_files, projekt, inspektor, status):
     if not WORD_AVAILABLE: return None
     doc = Document()
     
-    # Logo (Versuch rechtsbündig)
     if os.path.exists(LOGO_FILE):
         try:
             doc.add_picture(LOGO_FILE, width=Inches(1.5))
-            doc.paragraphs[-1].alignment = 2 # Rechts
+            doc.paragraphs[-1].alignment = 2 
         except: pass
 
-    # Header
     doc.add_heading('SICHERHEITS-INSPEKTION (DROHNE)', 0)
     p = doc.add_paragraph()
     p.add_run("Projekt: ").bold = True; p.add_run(f"{projekt}\n")
     p.add_run("Datum: ").bold = True; p.add_run(f"{date.today().strftime('%d.%m.%Y')}\n")
     p.add_run("Inspektor: ").bold = True; p.add_run(f"{inspektor}\n")
-    p.add_run("Status: ").bold = True; p.add_run(f"{status}")
+    p.add_run("Status: ").bold = True; p.add_run(f"{status}") # In Word gehen Emojis!
 
     doc.add_heading('1. ZUSAMMENFASSUNG / MÄNGEL', level=1)
     
@@ -250,7 +243,6 @@ def create_word(data, m_type, m_files, projekt, inspektor, status):
             except: pass
             if temp_created and os.path.exists(img_path): os.remove(img_path)
 
-    # Footer
     doc.add_page_break()
     doc.add_heading('4. FREIGABE', level=1)
     doc.add_paragraph("Dieser Bericht wurde generiert durch SafeSite Drohne.")
@@ -275,11 +267,8 @@ if 'current_page' not in st.session_state: st.session_state.current_page = 'home
 with st.sidebar:
     st.title("SafeSite Drohne")
     page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV"]
-    
-    # Mapping für Navigation
     p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3}
     curr_idx = p_map.get(st.session_state.current_page, 0)
-    
     page = st.radio("Bereich wählen:", page_options, index=curr_idx)
     
     if page == "🏠 Startseite": st.session_state.current_page = 'home'
@@ -331,7 +320,6 @@ elif st.session_state.current_page == 'safesite':
 
         elif st.session_state.app_step == 'screen_b':
             st.subheader("🕵️‍♂️ KI-Analyse")
-            
             if st.session_state.m_type == "video": st.video(st.session_state.m_files[0])
             else: 
                 cols = st.columns(3)
@@ -345,10 +333,7 @@ elif st.session_state.current_page == 'safesite':
                         prompt = """
                         Du bist ein strenger Schweizer Bau-Sicherheitsprüfer (SiBe).
                         Analysiere diese Aufnahmen KRITISCH nach BauAV und SUVA.
-                        WICHTIG - Suche gezielt nach LEBENSGEFAHR:
-                        1. GRÄBEN: Steht ein Bagger im Graben? Sind Wände senkrecht (>1.5m) ohne Spriessung? (BauAV Art 19/20)
-                        2. ARMIERUNG: Ragen Eisen heraus ohne Schutzkappen?
-                        3. ABSTURZ: Fehlen Geländer?
+                        Suche nach LEBENSGEFAHR (Gräben, Absturz, Armierung).
                         Antworte NUR als JSON Liste:
                         [{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 0, "bild_index": 0}]
                         """
@@ -362,7 +347,7 @@ elif st.session_state.current_page == 'safesite':
                                     while f.state.name == "PROCESSING": time.sleep(1)
                                     res = model.generate_content([f, prompt], generation_config={"response_mime_type": "application/json"})
                                 else:
-                                    imgs = [Image.open(p) for p in st.session_state.m_files] # Einfach
+                                    imgs = [Image.open(p) for p in st.session_state.m_files]
                                     res = model.generate_content([prompt] + imgs, generation_config={"response_mime_type": "application/json"})
                                 break 
                             except: continue
@@ -374,17 +359,16 @@ elif st.session_state.current_page == 'safesite':
             if st.session_state.analysis_data:
                 st.success(f"⚠️ {len(st.session_state.analysis_data)} Mängel gefunden")
                 
-                # --- HIER SIND DIE NEUEN EINGABEFELDER ---
                 st.divider()
                 st.markdown("### 📝 Projektdaten für Bericht")
                 c_a, c_b = st.columns(2)
                 with c_a:
-                    proj = st.text_input("Projektname", value="Überbauung 'Luegisland', Wohlen AG")
-                    insp = st.text_input("Inspektor Name", value="Dominik Marti")
+                    proj = st.text_input("Projektname", value="Projekt")
+                    insp = st.text_input("Inspektor Name", value="Name")
                 with c_b:
+                    # Emojis in der Auswahl sind OK für die Anzeige, werden fürs PDF entfernt
                     stat = st.selectbox("Status", ["⚠️ Massnahmen erforderlich", "✅ In Ordnung", "🛑 Kritisch - Baustopp"])
                 st.divider()
-                # -----------------------------------------
 
                 with st.form("check"):
                     confirmed = []
@@ -405,7 +389,6 @@ elif st.session_state.current_page == 'safesite':
                     
                     if st.form_submit_button("Berichte erstellen"):
                         st.session_state.confirmed = confirmed
-                        # Daten Speichern
                         st.session_state.meta_p = proj
                         st.session_state.meta_i = insp
                         st.session_state.meta_s = stat
@@ -415,7 +398,6 @@ elif st.session_state.current_page == 'safesite':
         elif st.session_state.app_step == 'screen_c':
             st.subheader("Berichte fertig!")
             
-            # Daten holen
             p = st.session_state.get('meta_p', '')
             i = st.session_state.get('meta_i', '')
             s = st.session_state.get('meta_s', '')
@@ -432,21 +414,18 @@ elif st.session_state.current_page == 'safesite':
                     with open(word_file, "rb") as f:
                         st.download_button("📝 Word Bericht", f, "SSD_Bericht.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
 
-            # --- EMAIL BUTTON ---
             st.divider()
             st.markdown("### 📧 Versenden")
             email_to = st.text_input("Empfänger Email", placeholder="kunde@bau.ch")
             
             if email_to:
                 subject = f"Sicherheitsbericht: {p}"
-                body = f"Grüezi,\n\nanbei erhalten Sie den Sicherheitsbericht für das Projekt {p}.\n\nInspektor: {i}\nStatus: {s}\n\nFreundliche Grüsse\nSafeSite Drohne"
+                body = f"Guten_Tag,\n\nanbei erhalten Sie den Sicherheitsbericht für das Projekt {p}.\n\nInspektor: {i}\nStatus: {s}\n\nFreundliche Grüsse\nSafeSite Drohne"
                 safe_s = urllib.parse.quote(subject)
                 safe_b = urllib.parse.quote(body)
                 mailto = f"mailto:{email_to}?subject={safe_s}&body={safe_b}"
                 
-                st.link_button("📧 Email-Entwurf öffnen (PDF bitte anhängen)", mailto)
-            else:
-                st.caption("Geben Sie eine Email-Adresse ein, um den Senden-Button zu sehen.")
+                st.link_button("📧 Email-Programm öffnen", mailto)
 
             if st.button("Neuer Auftrag"):
                 st.session_state.app_step = 'screen_a'
@@ -461,4 +440,4 @@ elif st.session_state.current_page == 'suva':
 
 elif st.session_state.current_page == 'bauav':
     st.header("⚖️ BauAV")
-    # BauAV Inhalt hier...
+    # BauAV Inhalt...
