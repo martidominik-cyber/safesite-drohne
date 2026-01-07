@@ -108,38 +108,77 @@ def convert_image_to_supported_format(image_path):
 # --- PDF GENERATOR ---
 class PDF(FPDF):
     def header(self):
-        self.set_font('Arial', 'B', 16)
-        self.set_text_color(255, 102, 0) # Orange
-        self.cell(0, 10, 'Sicherheitsbericht (Pro-Analyse)', ln=True)
+        # Logo oben RECHTS platzieren (x=160, y=8)
+        if os.path.exists(LOGO_FILE):
+            try: self.image(LOGO_FILE, 160, 8, 40)
+            except: pass
+        
+        # Kleiner Header auf jeder Seite (ausser der ersten, das machen wir manuell)
+        if self.page_no() > 1:
+            self.set_font('Arial', 'I', 8)
+            self.set_text_color(128, 128, 128)
+            self.cell(0, 10, 'SafeSite Drohne - Sicherheitsbericht', ln=True, align='R')
         self.ln(5)
 
-def create_pdf(data, m_type, m_files):
-    pdf = PDF(); pdf.add_page()
-    pdf.set_font("Arial", 'B', 12); pdf.set_text_color(0,0,0)
-    pdf.cell(0, 10, f"Gefundene Mängel: {len(data)}", ln=True); pdf.ln(5)
+def create_pdf(data, m_type, m_files, projekt_name, inspektor_name, status_text):
+    pdf = PDF()
+    pdf.add_page()
     
+    # --- TITELBEREICH (Wie Screenshot 1) ---
+    pdf.set_font("Arial", 'B', 20)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 10, "SICHERHEITS-INSPEKTION (DROHNE)", ln=True)
+    pdf.ln(10)
+    
+    # Metadaten Tabelle
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(30, 8, "Projekt:", ln=0)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(70, 8, projekt_name, ln=0)
+    
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(20, 8, "Datum:", ln=0)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(0, 8, date.today().strftime('%d. %B %Y'), ln=True) # z.B. 08. Januar 2026
+    
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(30, 8, "Inspektor:", ln=0)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(70, 8, f"{inspektor_name} (SafeSite Drohne)", ln=0)
+    
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(20, 8, "Status:", ln=0)
+    pdf.set_font("Arial", '', 11)
+    # Status mit Farbe simulieren (Text)
+    pdf.set_text_color(255, 153, 51) if "Massnahmen" in status_text else pdf.set_text_color(0, 153, 0)
+    pdf.cell(0, 8, status_text, ln=True)
+    pdf.set_text_color(0, 0, 0) # Reset Farbe
+    
+    pdf.ln(10)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, "1. ZUSAMMENFASSUNG / MÄNGELLISTE", ln=True)
+    pdf.ln(5)
+    
+    # --- MÄNGELLISTE ---
     for i, item in enumerate(data):
         if pdf.get_y() > 220: pdf.add_page()
         
         # Titel Rot und Fett
-        pdf.set_font("Arial", 'B', 12); pdf.set_text_color(204, 0, 0)
+        pdf.set_font("Arial", 'B', 12)
+        pdf.set_text_color(204, 0, 0)
         titel = f"{i+1}. {item.get('kategorie', 'Mangel')} ({item.get('prioritaet', 'Mittel')})"
         pdf.cell(0, 8, titel.encode('latin-1', 'replace').decode('latin-1'), ln=True)
         
         # Text Schwarz
         pdf.set_font("Arial", '', 10); pdf.set_text_color(0,0,0)
         
-        # Mangel
-        pdf.set_font("Arial", 'B', 10); pdf.write(5, "Situation: ")
-        pdf.set_font("Arial", '', 10); pdf.write(5, item.get('mangel', '-').encode('latin-1', 'replace').decode('latin-1')); pdf.ln(6)
-        
-        # Verstoss
-        pdf.set_font("Arial", 'B', 10); pdf.write(5, "Verstoss: ")
-        pdf.set_font("Arial", '', 10); pdf.write(5, item.get('verstoss', '-').encode('latin-1', 'replace').decode('latin-1')); pdf.ln(6)
-        
-        # Massnahme
-        pdf.set_font("Arial", 'B', 10); pdf.write(5, "Massnahme: ")
-        pdf.set_font("Arial", '', 10); pdf.write(5, item.get('massnahme', '-').encode('latin-1', 'replace').decode('latin-1')); pdf.ln(8)
+        # Inhalt
+        pdf.multi_cell(0, 5, f"Mangel: {item.get('mangel', '-').encode('latin-1', 'replace').decode('latin-1')}")
+        pdf.ln(2)
+        pdf.multi_cell(0, 5, f"Verstoss: {item.get('verstoss', '-').encode('latin-1', 'replace').decode('latin-1')}")
+        pdf.ln(2)
+        pdf.multi_cell(0, 5, f"Massnahme: {item.get('massnahme', '-').encode('latin-1', 'replace').decode('latin-1')}")
+        pdf.ln(5)
         
         # Bild
         img_path = None
@@ -159,35 +198,71 @@ def create_pdf(data, m_type, m_files):
             except: pass
             pdf.ln(10)
             if temp_created and os.path.exists(img_path): os.remove(img_path)
-            
+    
+    # --- SCHLUSSSEITE (Unterschriften) ---
+    if pdf.get_y() > 200: pdf.add_page()
+    pdf.ln(20)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, "4. FREIGABE", ln=True)
+    
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 10, "Dieser Bericht wurde generiert durch SafeSite Drohne.", ln=True)
+    
+    pdf.set_font("Arial", 'I', 9)
+    pdf.multi_cell(0, 5, "Hinweis: Dieser Bericht dient als visuelle Unterstützung. Er entbindet die zuständige Bauleitung nicht von der gesetzlichen Kontrollpflicht. Keine Garantie auf Vollständigkeit.")
+    pdf.ln(20)
+    
+    # Unterschriftenblock
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(40, 10, "Erstellt durch:", ln=0)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(80, 10, f"{inspektor_name} (SafeSite)", ln=0) # Name aus Input
+    pdf.cell(0, 10, "__________________________ (Datum / Unterschrift)", ln=True)
+    pdf.ln(10)
+    
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(40, 10, "Verantwortlicher Polier:", ln=0)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(80, 10, "__________________________", ln=0)
+    pdf.cell(0, 10, "__________________________ (Datum / Unterschrift)", ln=True)
+
     out = "Bericht.pdf"
     pdf.output(out)
-    return out
+    return out    
 
 # --- WORD GENERATOR ---
-def create_word(data, m_type, m_files):
+def create_word(data, m_type, m_files, projekt_name, inspektor_name, status_text):
     if not WORD_AVAILABLE: return None
     doc = Document()
-    doc.add_heading('Sicherheitsbericht SafeSite', 0)
-    doc.add_paragraph(f"Datum: {date.today().strftime('%d.%m.%Y')} | KI-Modell: Gemini 3.0 Pro")
+    
+    # Logo (Versuch rechtsbündig, falls python-docx das Bild findet)
+    if os.path.exists(LOGO_FILE):
+        try:
+            doc.add_picture(LOGO_FILE, width=Inches(1.5))
+            last_paragraph = doc.paragraphs[-1] 
+            last_paragraph.alignment = 2 # 2 = Rechtsbündig
+        except: pass
+
+    # Header Daten
+    h = doc.add_heading('SICHERHEITS-INSPEKTION (DROHNE)', 0)
+    
+    p = doc.add_paragraph()
+    p.add_run("Projekt: ").bold = True; p.add_run(f"{projekt_name}\n")
+    p.add_run("Datum: ").bold = True; p.add_run(f"{date.today().strftime('%d. %B %Y')}\n")
+    p.add_run("Inspektor: ").bold = True; p.add_run(f"{inspektor_name}\n")
+    p.add_run("Status: ").bold = True; p.add_run(f"{status_text} ⚠️")
+
+    doc.add_heading('1. ZUSAMMENFASSUNG / MÄNGEL', level=1)
     
     for i, item in enumerate(data):
-        doc.add_heading(f"{i+1}. {item.get('kategorie', 'Mangel')}", level=1)
+        doc.add_heading(f"{i+1}. {item.get('kategorie', 'Mangel')}", level=2)
         
         p = doc.add_paragraph()
-        p.add_run("Priorität: ").bold = True
-        p.add_run(f"{item.get('prioritaet')}\n")
+        p.add_run("Mangel: ").bold = True; p.add_run(f"{item.get('mangel')}\n")
+        p.add_run("Verstoss: ").bold = True; p.add_run(f"{item.get('verstoss')}\n")
+        p.add_run("Massnahme: ").bold = True; p.add_run(f"{item.get('massnahme')}")
         
-        p.add_run("Situation/Mangel: ").bold = True
-        p.add_run(f"{item.get('mangel')}\n")
-        
-        p.add_run("Verstoss: ").bold = True
-        p.add_run(f"{item.get('verstoss')}\n")
-        
-        p.add_run("Massnahme: ").bold = True
-        p.add_run(f"{item.get('massnahme')}")
-        
-        # Bild
+        # Bild einfügen
         img_path = None
         temp_created = False
         if m_type == "video":
@@ -201,14 +276,23 @@ def create_word(data, m_type, m_files):
             if idx < len(m_files): img_path = m_files[idx]
             
         if img_path:
-            try: doc.add_picture(img_path, width=Inches(5))
+            try: doc.add_picture(img_path, width=Inches(4.5))
             except: pass
             if temp_created and os.path.exists(img_path): os.remove(img_path)
+
+    # Footer / Freigabe
+    doc.add_page_break()
+    doc.add_heading('4. FREIGABE', level=1)
+    doc.add_paragraph("Dieser Bericht wurde generiert durch SafeSite Drohne.")
+    p = doc.add_paragraph("Hinweis: Dieser Bericht dient als visuelle Unterstützung. Er entbindet die zuständige Bauleitung nicht von der gesetzlichen Kontrollpflicht.")
+    p.italic = True
+    
+    doc.add_paragraph(f"\nErstellt durch: {inspektor_name} (SafeSite) \t____________________ (Datum/Unterschrift)")
+    doc.add_paragraph(f"\nVerantwortlicher Polier: \t\t\t____________________ (Datum/Unterschrift)")
 
     out = "Bericht.docx"
     doc.save(out)
     return out
-
 # ==========================================
 # 2. APP OBERFLÄCHE
 # ==========================================
@@ -390,46 +474,72 @@ elif st.session_state.current_page == 'safesite':
             if st.session_state.analysis_data:
                 st.success(f"⚠️ {len(st.session_state.analysis_data)} Mängel gefunden")
                 
+                # --- HIER SIND DIE NEUEN EINGABEFELDER ---
+                st.markdown("### 📝 Projektdaten für Bericht")
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    proj = st.text_input("Projektname", value="Überbauung 'Luegisland', Wohlen AG")
+                    insp = st.text_input("Inspektor Name", value="Dominik Marti")
+                with col_b:
+                    stat = st.selectbox("Status", ["⚠️ Massnahmen erforderlich", "✅ In Ordnung", "🛑 Kritisch - Baustopp"])
+                
+                st.divider()
+                st.markdown("### Mängel Auswahl")
+                # -----------------------------------------
+
                 with st.form("check"):
                     confirmed = []
+                    # ... (hier bleibt deine Schleife für die Mängel gleich wie vorher) ...
                     for i, item in enumerate(st.session_state.analysis_data):
+                        # ... (Dein existierender Code für Bilder/Text) ...
+                        # Nur zur Orientierung, das hier nicht kopieren, wenn es schon da ist:
                         c1, c2 = st.columns([1,3])
                         with c1:
-                            if st.session_state.m_type == "video":
+                             if st.session_state.m_type == "video":
                                 frm = extract_frame(st.session_state.m_files[0], item.get('zeitstempel_sekunden', 0))
                                 if frm is not None: st.image(frm)
-                            else:
+                             else:
                                 idx = item.get('bild_index', 0)
                                 if idx < len(st.session_state.m_files): st.image(st.session_state.m_files[idx])
                         with c2:
-                            prio = item.get('prioritaet', 'Mittel')
-                            color = "red" if prio in ["Kritisch", "Hoch"] else "orange"
-                            st.markdown(f":{color}[**{prio}: {item.get('mangel')}**]")
-                            st.write(f"⚖️ {item.get('verstoss')}")
-                            st.write(f"🛡️ {item.get('massnahme')}")
-                            if st.checkbox("In Bericht aufnehmen", True, key=str(i)): confirmed.append(item)
+                            st.markdown(f"#### :orange[{i+1}. {item['mangel']}]")
+                            st.caption(item.get('verstoss'))
+                            st.write(item.get('massnahme'))
+                            if st.checkbox("Aufnehmen", True, key=str(i)): confirmed.append(item)
                         st.divider()
-                    
+
                     if st.form_submit_button("Berichte erstellen"):
-                        st.session_state.confirmed = confirmed
+                        st.session_state.final = confirmed
+                        # WICHTIG: Wir speichern die Eingaben in session_state
+                        st.session_state.meta_projekt = proj
+                        st.session_state.meta_inspektor = insp
+                        st.session_state.meta_status = stat
+                        
                         st.session_state.app_step = 'screen_c'
                         st.rerun()
 
         elif st.session_state.app_step == 'screen_c':
-            st.subheader("Berichte fertig!")
-            if st.session_state.confirmed:
-                
-                # PDF Generierung
-                pdf_file = create_pdf(st.session_state.confirmed, st.session_state.m_type, st.session_state.m_files)
+            st.subheader("Fertig!")
+            
+            # Daten holen
+            p_name = st.session_state.get('meta_projekt', 'Unbekannt')
+            i_name = st.session_state.get('meta_inspektor', 'Unbekannt')
+            s_text = st.session_state.get('meta_status', 'Offen')
+
+            # PDF Generierung (Mit neuen Argumenten!)
+            pdf_file = create_pdf(st.session_state.final, st.session_state.m_type, st.session_state.m_files, p_name, i_name, s_text)
+            
+            col1, col2 = st.columns(2)
+            with col1:
                 with open(pdf_file, "rb") as f:
                     st.download_button("📄 PDF Bericht", f, "SSD_Bericht.pdf", mime="application/pdf")
-                
-                # Word Generierung (Nur wenn verfügbar)
+            
+            with col2:
                 if WORD_AVAILABLE:
-                    word_file = create_word(st.session_state.confirmed, st.session_state.m_type, st.session_state.m_files)
-                    if word_file:
-                        with open(word_file, "rb") as f:
-                            st.download_button("📝 Word Bericht (Editierbar)", f, "SSD_Bericht.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                    # Word Generierung (Mit neuen Argumenten!)
+                    word_file = create_word(st.session_state.final, st.session_state.m_type, st.session_state.m_files, p_name, i_name, s_text)
+                    with open(word_file, "rb") as f:
+                        st.download_button("📝 Word Bericht", f, "SSD_Bericht.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
                 else:
                     st.error("Word-Export geht nicht. Hast du 'python-docx' in requirements.txt eingetragen?")
 
