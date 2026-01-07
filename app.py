@@ -204,6 +204,18 @@ with st.sidebar:
         if st.button("Logout"): 
             st.session_state.logged_in = False
             st.rerun()
+    
+    # SUVA REGELN & BAUAV
+    st.divider()
+    st.subheader("📋 SUVA Regeln & BauAV")
+    
+    # Erweiterbarer Bereich für die Regeln
+    with st.expander("Regeln anzeigen", expanded=False):
+        regel_files = [f"regel_{i}.png" for i in range(1, 9)]
+        for regel_file in regel_files:
+            if os.path.exists(regel_file):
+                st.image(regel_file, use_container_width=True)
+                st.markdown("---")
 
 # HAUPTBEREICH
 if st.session_state.current_page == 'home':
@@ -264,9 +276,6 @@ elif st.session_state.current_page == 'safesite':
                     try:
                         genai.configure(api_key=API_KEY)
                         
-                        # WIR NUTZEN JETZT DAS NEUESTE MODELL
-                        model = genai.GenerativeModel('gemini-3.0-pro')
-                        
                         # PROMPT (Optimiert auf Basis deines Feedbacks)
                         prompt = """
                         Du bist ein strenger Schweizer Bau-Sicherheitsprüfer (SiBe).
@@ -285,13 +294,35 @@ elif st.session_state.current_page == 'safesite':
                         [{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 0, "bild_index": 0}]
                         """
                         
-                        if st.session_state.m_type == "video":
-                            f = genai.upload_file(st.session_state.m_files[0])
-                            while f.state.name == "PROCESSING": time.sleep(1)
-                            res = model.generate_content([f, prompt], generation_config={"response_mime_type": "application/json"})
-                        else:
-                            imgs = [Image.open(p) for p in st.session_state.m_files]
-                            res = model.generate_content([prompt] + imgs, generation_config={"response_mime_type": "application/json"})
+                        # Versuche verschiedene Modellnamen für Gemini 3.0
+                        model_names = ['gemini-3-pro-preview', 'gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-pro']
+                        res = None
+                        used_model = None
+                        
+                        for model_name in model_names:
+                            try:
+                                model = genai.GenerativeModel(model_name)
+                                
+                                if st.session_state.m_type == "video":
+                                    f = genai.upload_file(st.session_state.m_files[0])
+                                    while f.state.name == "PROCESSING": time.sleep(1)
+                                    res = model.generate_content([f, prompt], generation_config={"response_mime_type": "application/json"})
+                                else:
+                                    imgs = [Image.open(p) for p in st.session_state.m_files]
+                                    res = model.generate_content([prompt] + imgs, generation_config={"response_mime_type": "application/json"})
+                                
+                                used_model = model_name
+                                if model_name != 'gemini-3-pro-preview':
+                                    st.info(f"ℹ️ Verwende {model_name} (Gemini 3.0 nicht verfügbar)")
+                                break
+                            except Exception as e:
+                                if "404" in str(e) or "not found" in str(e).lower():
+                                    continue  # Versuche nächstes Modell
+                                else:
+                                    raise  # Anderer Fehler, weiterwerfen
+                        
+                        if res is None:
+                            raise Exception("Kein verfügbares Modell gefunden. Bitte API-Key und Modellverfügbarkeit überprüfen.")
                         
                         st.session_state.analysis_data = json.loads(clean_json(res.text))
                         st.rerun()
