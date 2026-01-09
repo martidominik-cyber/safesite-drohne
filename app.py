@@ -487,9 +487,38 @@ with st.sidebar:
 if st.session_state.current_page == 'home':
     if os.path.exists(TITELBILD_FILE):
         st.image(TITELBILD_FILE, use_container_width=True)
+    
     st.header("🏠 Willkommen bei SafeSite Drohne")
-    st.write("Wählen Sie einen Bereich aus der Sidebar aus.")
-    st.info("💡 Der SafeSite-Check Bereich erfordert eine Anmeldung.")
+    
+    st.markdown("## Sicherheit, die sich auszahlt.")
+    st.markdown("""
+    SafeSite Drohne ist mehr als nur eine Kamera in der Luft. Wir liefern Ihnen ein komplettes System zur Unfallprävention und Dokumentation – entwickelt von Polieren für den täglichen Einsatz.
+    """)
+    
+    st.markdown("---")
+    
+    # Menüpunkte als Buttons
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("🔍 SafeSite-Check", use_container_width=True, type="primary"):
+            st.session_state.current_page = 'safesite'
+            st.rerun()
+        
+        if st.button("📋 SUVA Regeln", use_container_width=True):
+            st.session_state.current_page = 'suva'
+            st.rerun()
+    
+    with col2:
+        if st.button("⚖️ BauAV", use_container_width=True):
+            st.session_state.current_page = 'bauav'
+            st.rerun()
+        
+        # Kundenverwaltung nur für Admin
+        if is_admin():
+            if st.button("👥 Kundenverwaltung", use_container_width=True):
+                st.session_state.current_page = 'kunden'
+                st.rerun()
 
 elif st.session_state.current_page == 'safesite':
     if not st.session_state.logged_in:
