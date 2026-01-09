@@ -49,6 +49,9 @@ def load_users():
         with open(USER_DB_FILE, "w") as f: json.dump({"admin": "1234"}, f)
     with open(USER_DB_FILE, "r") as f: return json.load(f)
 
+def save_users(users):
+    with open(USER_DB_FILE, "w") as f: json.dump(users, f, indent=2)
+
 def load_customers():
     if not os.path.exists(CUSTOMERS_DB_FILE):
         with open(CUSTOMERS_DB_FILE, "w") as f: json.dump({}, f)
@@ -59,6 +62,42 @@ def save_customers(customers):
 
 def is_admin():
     return st.session_state.logged_in and st.session_state.username == "admin"
+
+def get_customer_by_email(email):
+    """Findet einen Kunden anhand seiner Email-Adresse"""
+    customers = load_customers()
+    for kunde_id, kunde_data in customers.items():
+        if kunde_data.get('email') == email:
+            return kunde_id, kunde_data
+    return None, None
+
+def get_customer_credits(email):
+    """Gibt die Credits eines Kunden zurück (0 falls nicht gefunden)"""
+    kunde_id, kunde_data = get_customer_by_email(email)
+    if kunde_data:
+        return int(kunde_data.get('credits', 0))
+    return 0
+
+def deduct_credit(email):
+    """Zieht 1 Credit vom Kunden ab und speichert"""
+    customers = load_customers()
+    kunde_id, kunde_data = get_customer_by_email(email)
+    if kunde_id and kunde_data:
+        current_credits = int(kunde_data.get('credits', 0))
+        if current_credits > 0:
+            customers[kunde_id]['credits'] = current_credits - 1
+            save_customers(customers)
+            return True
+    return False
+
+def update_customer_credits(kunde_id, credits):
+    """Aktualisiert die Credits eines Kunden"""
+    customers = load_customers()
+    if kunde_id in customers:
+        customers[kunde_id]['credits'] = int(credits)
+        save_customers(customers)
+        return True
+    return False
 
 # API KEY CHECK
 try:
@@ -89,6 +128,71 @@ def extract_frame(video_path, timestamp):
         ret, frame = cap.read(); cap.release()
         if ret: return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     except: return None
+
+def convert_image_if_needed(img_path):
+    """Konvertiert Bilder in ein Format, das von PIL verarbeitet werden kann"""
+    try:
+        # Prüfe ob es eine HEIC/HEIF Datei ist
+        if img_path.lower().endswith(('.heic', '.heif')):
+            # Versuche zuerst mit PIL (falls pillow-heif installiert ist)
+            try:
+                img = Image.open(img_path)
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                new_path = img_path.rsplit('.', 1)[0] + '.jpg'
+                img.save(new_path, 'JPEG', quality=95)
+                # Alte Datei löschen
+                if os.path.exists(img_path):
+                    try: os.remove(img_path)
+                    except: pass
+                return new_path
+            except:
+                # PIL kann HEIC nicht öffnen, versuche mit OpenCV
+                pass
+            
+            # Versuche mit OpenCV (kann manchmal HEIC lesen, wenn entsprechende Codecs vorhanden sind)
+            try:
+                img_array = cv2.imread(img_path, cv2.IMREAD_COLOR)
+                if img_array is not None and img_array.size > 0:
+                    new_path = img_path.rsplit('.', 1)[0] + '.jpg'
+                    cv2.imwrite(new_path, img_array, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                    if os.path.exists(img_path):
+                        try: os.remove(img_path)
+                        except: pass
+                    return new_path
+            except:
+                pass
+            
+            # Falls beides fehlschlägt, gib Warnung aus aber behalte Originaldatei
+            # (möglicherweise unterstützt der Browser die Konvertierung beim Upload)
+            return img_path
+        
+        # Für andere Formate, versuche einfach zu öffnen
+        try:
+            img = Image.open(img_path)
+            # Stelle sicher, dass es RGB ist
+            if img.mode != 'RGB' and img.mode not in ['RGBA', 'P']:
+                # Konvertiere problematische Formate
+                if img.mode in ['RGBA', 'P']:
+                    # Erstelle weissen Hintergrund für transparente Bilder
+                    rgb_img = Image.new('RGB', img.size, (255, 255, 255))
+                    if img.mode == 'RGBA':
+                        rgb_img.paste(img, mask=img.split()[3])
+                    else:
+                        rgb_img.paste(img)
+                    new_path = img_path.rsplit('.', 1)[0] + '_rgb.jpg'
+                    rgb_img.save(new_path, 'JPEG', quality=95)
+                    if img_path != new_path and os.path.exists(img_path):
+                        try: os.remove(img_path)
+                        except: pass
+                    return new_path
+            return img_path
+        except:
+            return img_path
+            
+    except Exception as e:
+        # Bei jedem Fehler, gib die Originaldatei zurück
+        return img_path
 
 # --- PDF GENERATOR ---
 class PDF(FPDF):
@@ -306,6 +410,12 @@ with st.sidebar:
     if st.session_state.logged_in:
         st.divider()
         st.info(f"✅ Eingeloggt als: **{st.session_state.username}**")
+        
+        # Credits-Anzeige nur für Kunden (nicht Admin)
+        if not is_admin() and st.session_state.username:
+            credits = get_customer_credits(st.session_state.username)
+            st.metric("🪙 SafeSite Credits", credits)
+        
         if st.button("Logout"): 
             st.session_state.logged_in = False
             st.session_state.username = None
@@ -323,7 +433,8 @@ if st.session_state.current_page == 'home':
 elif st.session_state.current_page == 'safesite':
     if not st.session_state.logged_in:
         st.header("🔍 SafeSite-Check - Login")
-        u = st.text_input("User")
+        st.info("💡 **Admin:** Verwenden Sie 'admin' als Username. **Kunden:** Verwenden Sie Ihre Email-Adresse als Username.")
+        u = st.text_input("Username", placeholder="admin oder Email-Adresse")
         p = st.text_input("Passwort", type="password")
         if st.button("Einloggen"):
             users = load_users()
@@ -340,16 +451,68 @@ elif st.session_state.current_page == 'safesite':
             files = []
             
             if mode == "📹 Video":
-                vf = st.file_uploader("Video (mp4)", type=["mp4"])
-                if vf and st.button("Analyse starten"):
-                    t = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4'); t.write(vf.read()); files.append(t.name); t.close()
-                    st.session_state.m_type = "video"; st.session_state.m_files = files; st.session_state.app_step = 'screen_b'; st.rerun()
+                st.info("💡 **Tipp:** Sie können Videos aus Ihrer Mediathek/Galerie auswählen (funktioniert auf Handy, Tablet und Laptop).")
+                vf = st.file_uploader("Video hochladen", type=["mp4", "mov", "avi"], help="Unterstützte Formate: MP4, MOV, AVI")
+                if vf:
+                    st.success(f"✅ Video ausgewählt: {vf.name}")
+                    if st.button("Analyse starten", type="primary", use_container_width=True):
+                        suffix = os.path.splitext(vf.name)[1] if os.path.splitext(vf.name)[1] else '.mp4'
+                        t = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                        t.write(vf.read())
+                        files.append(t.name)
+                        t.close()
+                        st.session_state.m_type = "video"
+                        st.session_state.m_files = files
+                        st.session_state.app_step = 'screen_b'
+                        st.rerun()
             else:
-                pf = st.file_uploader("Fotos", type=["jpg", "png"], accept_multiple_files=True)
-                if pf and st.button("Analyse starten"):
-                    for f in pf:
-                        t = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg'); t.write(f.read()); files.append(t.name); t.close()
-                    st.session_state.m_type = "images"; st.session_state.m_files = files; st.session_state.app_step = 'screen_b'; st.rerun()
+                st.info("💡 **Tipp:** Sie können Fotos aus Ihrer Galerie/Mediathek auswählen (funktioniert auf Handy, Tablet und Laptop).")
+                pf = st.file_uploader(
+                    "Fotos hochladen", 
+                    type=["jpg", "jpeg", "png", "heic", "heif", "webp"], 
+                    accept_multiple_files=True,
+                    help="Wählen Sie ein oder mehrere Fotos aus. Unterstützt: JPG, PNG, HEIC (iPhone), WEBP"
+                )
+                if pf:
+                    st.success(f"✅ {len(pf)} Foto(s) ausgewählt")
+                    # Zeige Dateinamen an
+                    for idx, f in enumerate(pf[:5]):  # Zeige max. 5 Dateien
+                        st.caption(f"📷 {f.name}")
+                    if len(pf) > 5:
+                        st.caption(f"... und {len(pf) - 5} weitere")
+                    
+                    if st.button("Analyse starten", type="primary", use_container_width=True):
+                        with st.spinner("Bilder werden verarbeitet..."):
+                            for f in pf:
+                                # Original-Dateiendung beibehalten
+                                original_ext = os.path.splitext(f.name)[1].lower() if os.path.splitext(f.name)[1] else ''
+                                # Verwende passende Endung basierend auf Dateityp
+                                if original_ext in ['.heic', '.heif']:
+                                    suffix = '.heic'  # Wird später konvertiert
+                                elif original_ext in ['.jpg', '.jpeg']:
+                                    suffix = '.jpg'
+                                elif original_ext == '.png':
+                                    suffix = '.png'
+                                elif original_ext == '.webp':
+                                    suffix = '.webp'
+                                else:
+                                    suffix = '.jpg'  # Standard
+                                
+                                t = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                                t.write(f.read())
+                                files.append(t.name)
+                                t.close()
+                            
+                            # Konvertiere HEIC/HEIF Dateien falls nötig
+                            converted_files = []
+                            for f_path in files:
+                                converted_path = convert_image_if_needed(f_path)
+                                converted_files.append(converted_path)
+                            
+                            st.session_state.m_type = "images"
+                            st.session_state.m_files = converted_files
+                            st.session_state.app_step = 'screen_b'
+                            st.rerun()
 
         elif st.session_state.app_step == 'screen_b':
             st.subheader("🕵️‍♂️ KI-Analyse (Gemini 3.0)")
@@ -394,7 +557,31 @@ elif st.session_state.current_page == 'safesite':
                                         f = genai.get_file(f.name)
                                     res = model.generate_content([f, prompt], generation_config={"response_mime_type": "application/json"})
                                 else:
-                                    imgs = [Image.open(p) for p in st.session_state.m_files]
+                                    # Öffne Bilder und konvertiere bei Bedarf
+                                    imgs = []
+                                    for p in st.session_state.m_files:
+                                        try:
+                                            img = Image.open(p)
+                                            # Stelle sicher, dass Bild im RGB-Format ist
+                                            if img.mode != 'RGB':
+                                                img = img.convert('RGB')
+                                            imgs.append(img)
+                                        except Exception as e:
+                                            st.warning(f"⚠️ Fehler beim Öffnen von {os.path.basename(p)}: {str(e)}")
+                                            # Versuche mit cv2 als Fallback
+                                            try:
+                                                img_array = cv2.imread(p)
+                                                if img_array is not None:
+                                                    img_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+                                                    img = Image.fromarray(img_rgb)
+                                                    imgs.append(img)
+                                            except:
+                                                st.error(f"❌ Konnte Bild {os.path.basename(p)} nicht verarbeiten")
+                                    
+                                    if not imgs:
+                                        st.error("❌ Keine Bilder konnten verarbeitet werden. Bitte versuchen Sie andere Dateiformate.")
+                                        continue
+                                    
                                     res = model.generate_content([prompt] + imgs, generation_config={"response_mime_type": "application/json"})
                                 
                                 # Wenn wir hier sind, hat es geklappt!
@@ -414,7 +601,17 @@ elif st.session_state.current_page == 'safesite':
             if st.session_state.analysis_data:
                 st.success(f"⚠️ {len(st.session_state.analysis_data)} Mängel gefunden")
                 
-                st.divider()
+                # Credits-Anzeige für Kunden (nicht Admin)
+                if not is_admin() and st.session_state.username:
+                    credits = get_customer_credits(st.session_state.username)
+                    col_credits = st.columns([2, 1])
+                    with col_credits[1]:
+                        if credits < 1:
+                            st.error(f"🪙 Credits: {credits} (Nicht genügend für Bericht!)")
+                        else:
+                            st.info(f"🪙 Verbleibende Credits: **{credits}**")
+                    st.divider()
+                
                 st.markdown("### 📝 Projektdaten für Bericht")
                 c_a, c_b = st.columns(2)
                 with c_a:
@@ -442,15 +639,41 @@ elif st.session_state.current_page == 'safesite':
                         st.divider()
                     
                     if st.form_submit_button("Berichte erstellen"):
-                        st.session_state.confirmed = confirmed
-                        st.session_state.meta_p = proj
-                        st.session_state.meta_i = insp
-                        st.session_state.meta_s = stat
-                        st.session_state.app_step = 'screen_c'
-                        st.rerun()
+                        # Credit-Prüfung (nur für Kunden, nicht für Admin)
+                        if not is_admin():
+                            username = st.session_state.username
+                            credits = get_customer_credits(username)
+                            if credits < 1:
+                                st.error(f"⚠️ Nicht genügend Credits! Sie haben {credits} Credit(s). Bitte kontaktieren Sie den Administrator.")
+                            else:
+                                # Credit abbuchen
+                                if deduct_credit(username):
+                                    st.success(f"✅ 1 Credit abgebucht. Verbleibend: {credits - 1}")
+                                    st.session_state.confirmed = confirmed
+                                    st.session_state.meta_p = proj
+                                    st.session_state.meta_i = insp
+                                    st.session_state.meta_s = stat
+                                    st.session_state.app_step = 'screen_c'
+                                    st.rerun()
+                                else:
+                                    st.error("⚠️ Fehler beim Abziehen der Credits. Bitte versuchen Sie es erneut.")
+                        else:
+                            # Admin kann ohne Credits erstellen
+                            st.session_state.confirmed = confirmed
+                            st.session_state.meta_p = proj
+                            st.session_state.meta_i = insp
+                            st.session_state.meta_s = stat
+                            st.session_state.app_step = 'screen_c'
+                            st.rerun()
 
         elif st.session_state.app_step == 'screen_c':
             st.subheader("Berichte fertig!")
+            
+            # Credits-Anzeige nach erfolgreicher Erstellung (für Kunden)
+            if not is_admin() and st.session_state.username:
+                remaining_credits = get_customer_credits(st.session_state.username)
+                st.info(f"🪙 Verbleibende Credits: **{remaining_credits}**")
+                st.divider()
             
             p = st.session_state.get('meta_p', '')
             i = st.session_state.get('meta_i', '')
@@ -547,22 +770,122 @@ elif st.session_state.current_page == 'kunden':
             if not customers:
                 st.info("Noch keine Kunden vorhanden. Fügen Sie einen neuen Kunden hinzu.")
             else:
+                users = load_users()
                 for kunde_id, kunde_data in customers.items():
                     with st.container(border=True):
-                        col1, col2 = st.columns([3, 1])
+                        col1, col2, col3 = st.columns([3, 1, 1])
                         with col1:
                             st.markdown(f"### {kunde_data.get('name', 'Unbekannt')}")
                             st.write(f"**Firma:** {kunde_data.get('firma', '-')}")
-                            st.write(f"**Email:** {kunde_data.get('email', '-')}")
+                            email = kunde_data.get('email', '')
+                            st.write(f"**Email:** {email}")
                             st.write(f"**Telefon:** {kunde_data.get('telefon', '-')}")
                             if 'adresse' in kunde_data:
                                 st.write(f"**Adresse:** {kunde_data['adresse']}")
+                            
+                            # Credits anzeigen
+                            credits = int(kunde_data.get('credits', 0))
+                            st.metric("🪙 SafeSite Credits", credits)
+                            
+                            # Login-Status anzeigen
+                            if email and email in users:
+                                st.success("✅ Login aktiv")
+                                st.caption(f"Username: {email}")
+                            else:
+                                st.warning("⚠️ Kein Login erstellt")
                         with col2:
+                            if email and email in users:
+                                if st.button("🔑 Passwort ändern", key=f"passwd_{kunde_id}"):
+                                    st.session_state[f"edit_passwd_{kunde_id}"] = True
+                                    st.rerun()
+                            else:
+                                if st.button("🔑 Login erstellen", key=f"create_login_{kunde_id}"):
+                                    st.session_state[f"create_login_{kunde_id}"] = True
+                                    st.rerun()
+                            # Credits bearbeiten Button
+                            if st.button("💰 Credits verwalten", key=f"credits_{kunde_id}"):
+                                st.session_state[f"edit_credits_{kunde_id}"] = True
+                                st.rerun()
+                        with col3:
                             if st.button("🗑️ Löschen", key=f"delete_{kunde_id}"):
+                                # Kunde aus customers.json löschen
                                 del customers[kunde_id]
                                 save_customers(customers)
+                                # Login aus users.json löschen (falls vorhanden)
+                                if email and email in users:
+                                    del users[email]
+                                    save_users(users)
                                 st.success("Kunde gelöscht!")
                                 st.rerun()
+                        
+                        # Credits bearbeiten Formular
+                        if st.session_state.get(f"edit_credits_{kunde_id}", False):
+                            st.divider()
+                            with st.form(f"form_credits_{kunde_id}"):
+                                st.markdown("**🪙 Credits verwalten**")
+                                current_credits = int(kunde_data.get('credits', 0))
+                                new_credits = st.number_input("Anzahl Credits", min_value=0, value=current_credits, step=1, key=f"credits_input_{kunde_id}")
+                                col_a, col_b = st.columns(2)
+                                with col_a:
+                                    if st.form_submit_button("✅ Credits speichern", use_container_width=True):
+                                        update_customer_credits(kunde_id, new_credits)
+                                        st.session_state[f"edit_credits_{kunde_id}"] = False
+                                        st.success(f"Credits auf {new_credits} aktualisiert!")
+                                        st.rerun()
+                                with col_b:
+                                    if st.form_submit_button("❌ Abbrechen", use_container_width=True):
+                                        st.session_state[f"edit_credits_{kunde_id}"] = False
+                                        st.rerun()
+                        
+                        # Passwort ändern Formular
+                        if st.session_state.get(f"edit_passwd_{kunde_id}", False):
+                            st.divider()
+                            with st.form(f"form_passwd_{kunde_id}"):
+                                new_pass = st.text_input("Neues Passwort", type="password", key=f"new_pass_{kunde_id}")
+                                new_pass_confirm = st.text_input("Passwort bestätigen", type="password", key=f"new_pass_confirm_{kunde_id}")
+                                col_a, col_b = st.columns(2)
+                                with col_a:
+                                    if st.form_submit_button("✅ Passwort ändern", use_container_width=True):
+                                        if new_pass and new_pass == new_pass_confirm:
+                                            users[email] = new_pass
+                                            save_users(users)
+                                            st.session_state[f"edit_passwd_{kunde_id}"] = False
+                                            st.success("Passwort erfolgreich geändert!")
+                                            st.rerun()
+                                        elif new_pass != new_pass_confirm:
+                                            st.error("Passwörter stimmen nicht überein!")
+                                        else:
+                                            st.error("Passwort darf nicht leer sein!")
+                                with col_b:
+                                    if st.form_submit_button("❌ Abbrechen", use_container_width=True):
+                                        st.session_state[f"edit_passwd_{kunde_id}"] = False
+                                        st.rerun()
+                        
+                        # Login erstellen Formular
+                        if st.session_state.get(f"create_login_{kunde_id}", False):
+                            st.divider()
+                            with st.form(f"form_create_login_{kunde_id}"):
+                                st.info(f"Login wird für: {email} erstellt")
+                                new_pass = st.text_input("Passwort", type="password", key=f"create_pass_{kunde_id}")
+                                new_pass_confirm = st.text_input("Passwort bestätigen", type="password", key=f"create_pass_confirm_{kunde_id}")
+                                col_a, col_b = st.columns(2)
+                                with col_a:
+                                    if st.form_submit_button("✅ Login erstellen", use_container_width=True):
+                                        if new_pass and new_pass == new_pass_confirm:
+                                            users[email] = new_pass
+                                            save_users(users)
+                                            st.session_state[f"create_login_{kunde_id}"] = False
+                                            st.success(f"Login für {email} erfolgreich erstellt!")
+                                            st.rerun()
+                                        elif new_pass != new_pass_confirm:
+                                            st.error("Passwörter stimmen nicht überein!")
+                                        else:
+                                            st.error("Passwort darf nicht leer sein!")
+                                with col_b:
+                                    if st.form_submit_button("❌ Abbrechen", use_container_width=True):
+                                        st.session_state[f"create_login_{kunde_id}"] = False
+                                        st.rerun()
+                        
                         st.divider()
         
         with tab2:
@@ -574,6 +897,22 @@ elif st.session_state.current_page == 'kunden':
                 telefon = st.text_input("Telefon", placeholder="+41 79 123 45 67")
                 adresse = st.text_area("Adresse", placeholder="Musterstrasse 123\n8000 Zürich")
                 
+                st.divider()
+                st.markdown("**🪙 SafeSite Credits:**")
+                initial_credits = st.number_input("Anfangliche Credits", min_value=0, value=0, step=1, key="new_kunde_credits")
+                st.caption("💡 1 Credit = 1 Bericht. Credits werden automatisch bei jedem Bericht abgebucht.")
+                
+                st.divider()
+                st.markdown("**Login für SafeSite-Check (optional):**")
+                create_login = st.checkbox("Login-Konto für diesen Kunden erstellen", value=False)
+                login_passwort = ""
+                login_passwort_confirm = ""
+                if create_login:
+                    login_passwort = st.text_input("Passwort", type="password", key="new_kunde_pass")
+                    login_passwort_confirm = st.text_input("Passwort bestätigen", type="password", key="new_kunde_pass_confirm")
+                    email_placeholder = email if email else "(Email eingeben)"
+                    st.caption(f"💡 Der Kunde kann sich dann mit der Email '{email_placeholder}' als Username anmelden.")
+                
                 col1, col2 = st.columns(2)
                 with col1:
                     submit = st.form_submit_button("✅ Kunde hinzufügen", use_container_width=True)
@@ -583,19 +922,37 @@ elif st.session_state.current_page == 'kunden':
                 if submit:
                     if not kunde_name or not email:
                         st.error("⚠️ Name und Email sind Pflichtfelder!")
+                    elif create_login and (not login_passwort or login_passwort != login_passwort_confirm):
+                        if not login_passwort:
+                            st.error("⚠️ Bitte geben Sie ein Passwort ein, wenn Sie ein Login erstellen möchten!")
+                        else:
+                            st.error("⚠️ Die Passwörter stimmen nicht überein!")
                     else:
-                        # Eindeutige ID generieren
-                        kunde_id = str(uuid.uuid4())[:8]
-                        
-                        # Kunde hinzufügen
-                        customers[kunde_id] = {
-                            "name": kunde_name,
-                            "firma": firma,
-                            "email": email,
-                            "telefon": telefon,
-                            "adresse": adresse,
-                            "erstellt_am": date.today().strftime('%d.%m.%Y')
-                        }
-                        save_customers(customers)
-                        st.success(f"✅ Kunde '{kunde_name}' erfolgreich hinzugefügt!")
-                        st.rerun()
+                        # Prüfen ob Email bereits als Username existiert
+                        users = load_users()
+                        if email in users:
+                            st.error(f"⚠️ Ein Login mit der Email '{email}' existiert bereits!")
+                        else:
+                            # Eindeutige ID generieren
+                            kunde_id = str(uuid.uuid4())[:8]
+                            
+                            # Kunde hinzufügen
+                            customers[kunde_id] = {
+                                "name": kunde_name,
+                                "firma": firma,
+                                "email": email,
+                                "telefon": telefon,
+                                "adresse": adresse,
+                                "credits": int(initial_credits),
+                                "erstellt_am": date.today().strftime('%d.%m.%Y')
+                            }
+                            save_customers(customers)
+                            
+                            # Login erstellen, falls gewünscht
+                            if create_login and login_passwort:
+                                users[email] = login_passwort
+                                save_users(users)
+                                st.success(f"✅ Kunde '{kunde_name}' erfolgreich hinzugefügt mit {initial_credits} Credits und Login erstellt!")
+                            else:
+                                st.success(f"✅ Kunde '{kunde_name}' erfolgreich hinzugefügt mit {initial_credits} Credits!")
+                            st.rerun()
