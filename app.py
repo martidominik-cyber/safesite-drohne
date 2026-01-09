@@ -378,6 +378,7 @@ if 'analysis_data' not in st.session_state: st.session_state.analysis_data = []
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'current_page' not in st.session_state: st.session_state.current_page = 'home'
 if 'username' not in st.session_state: st.session_state.username = None
+if 'show_login' not in st.session_state: st.session_state.show_login = False
 
 # SIDEBAR
 with st.sidebar:
@@ -407,8 +408,27 @@ with st.sidebar:
     elif page == "⚖️ BauAV": st.session_state.current_page = 'bauav'
     elif page == "👥 Kundenverwaltung": st.session_state.current_page = 'kunden'
     
-    if st.session_state.logged_in:
-        st.divider()
+    st.divider()
+    
+    # Login-Bereich in Sidebar
+    if not st.session_state.logged_in:
+        st.markdown("### 🔐 Login")
+        st.info("💡 **Admin:** Verwenden Sie 'admin' als Username. **Kunden:** Verwenden Sie Ihre Email-Adresse als Username.")
+        
+        with st.form("login_form", clear_on_submit=False):
+            u = st.text_input("Username", placeholder="admin oder Email-Adresse", key="sidebar_username")
+            p = st.text_input("Passwort", type="password", key="sidebar_password")
+            if st.form_submit_button("Einloggen", use_container_width=True, type="primary"):
+                users = load_users()
+                if u in users and users[u] == p:
+                    st.session_state.logged_in = True
+                    st.session_state.username = u
+                    st.session_state.show_login = False
+                    st.rerun()
+                else:
+                    st.error("❌ Falscher Username oder Passwort!")
+    else:
+        st.markdown("### 👤 Benutzer")
         st.info(f"✅ Eingeloggt als: **{st.session_state.username}**")
         
         # Credits-Anzeige nur für Kunden (nicht Admin)
@@ -416,10 +436,12 @@ with st.sidebar:
             credits = get_customer_credits(st.session_state.username)
             st.metric("🪙 SafeSite Credits", credits)
         
-        if st.button("Logout"): 
+        if st.button("Logout", use_container_width=True): 
             st.session_state.logged_in = False
             st.session_state.username = None
             st.session_state.current_page = 'home'
+            st.session_state.app_step = 'screen_a'
+            st.session_state.analysis_data = []
             st.rerun()
 
 # HAUPTBEREICH
@@ -432,17 +454,23 @@ if st.session_state.current_page == 'home':
 
 elif st.session_state.current_page == 'safesite':
     if not st.session_state.logged_in:
-        st.header("🔍 SafeSite-Check - Login")
-        st.info("💡 **Admin:** Verwenden Sie 'admin' als Username. **Kunden:** Verwenden Sie Ihre Email-Adresse als Username.")
-        u = st.text_input("Username", placeholder="admin oder Email-Adresse")
-        p = st.text_input("Passwort", type="password")
-        if st.button("Einloggen"):
-            users = load_users()
-            if u in users and users[u] == p:
-                st.session_state.logged_in = True
-                st.session_state.username = u
+        st.header("🔍 SafeSite-Check")
+        st.warning("⚠️ Sie müssen sich anmelden, um den SafeSite-Check zu verwenden.")
+        st.info("💡 Bitte verwenden Sie das Login-Formular in der Sidebar (links) um sich anzumelden.")
+        
+        # Button zum Login (visueller Hinweis)
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown("""
+            <div style="text-align: center; padding: 20px;">
+                <p style="font-size: 18px; margin-bottom: 20px;">👉 Bitte nutzen Sie das <strong>Login-Formular in der Sidebar</strong> (links) 👈</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Optional: Button der die Sidebar hervorhebt
+            if st.button("🔐 Zum Login in der Sidebar", type="primary", use_container_width=True):
+                st.info("👈 Bitte verwenden Sie das Login-Formular in der Sidebar links!")
                 st.rerun()
-            else: st.error("Falsch")
     else:
         # APP START
         if st.session_state.app_step == 'screen_a':
