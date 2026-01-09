@@ -432,10 +432,9 @@ with st.sidebar:
     # Login-Bereich in Sidebar
     if not st.session_state.logged_in:
         st.markdown("### 🔐 Login")
-        st.info("💡 **Admin:** Verwenden Sie 'admin' als Username. **Kunden:** Verwenden Sie Ihre Email-Adresse oder Ihren Benutzernamen.")
         
         with st.form("login_form", clear_on_submit=False):
-            u = st.text_input("Username / Email", placeholder="admin, Email oder Benutzername", key="sidebar_username")
+            u = st.text_input("Username / Email", key="sidebar_username")
             p = st.text_input("Passwort", type="password", key="sidebar_password")
             if st.form_submit_button("Einloggen", use_container_width=True, type="primary"):
                 users = load_users()
@@ -1008,22 +1007,19 @@ elif st.session_state.current_page == 'kunden':
                 st.caption("💡 1 Credit = 1 Bericht. Credits werden automatisch bei jedem Bericht abgebucht.")
                 
                 st.divider()
-                st.markdown("**Login für SafeSite-Check (optional):**")
-                create_login = st.checkbox("Login-Konto für diesen Kunden erstellen", value=False)
-                login_passwort = ""
-                login_passwort_confirm = ""
-                if create_login:
-                    login_passwort = st.text_input("Passwort", type="password", key="new_kunde_pass")
-                    login_passwort_confirm = st.text_input("Passwort bestätigen", type="password", key="new_kunde_pass_confirm")
-                    login_info = []
-                    if email:
-                        login_info.append(f"Email: {email}")
-                    if username_optional:
-                        login_info.append(f"Benutzername: {username_optional}")
-                    if login_info:
-                        st.caption(f"💡 Der Kunde kann sich dann mit {' oder '.join(login_info)} anmelden.")
-                    else:
-                        st.caption("💡 Bitte Email (und optional Benutzername) eingeben.")
+                st.markdown("**🔐 Login für SafeSite-Check (Pflicht):**")
+                st.info("💡 Ein Login-Konto wird automatisch für jeden Kunden erstellt.")
+                login_passwort = st.text_input("Passwort *", type="password", key="new_kunde_pass", help="Pflichtfeld: Der Kunde benötigt ein Passwort für den Login")
+                login_passwort_confirm = st.text_input("Passwort bestätigen *", type="password", key="new_kunde_pass_confirm")
+                login_info = []
+                if email:
+                    login_info.append(f"Email: {email}")
+                if username_optional:
+                    login_info.append(f"Benutzername: {username_optional}")
+                if login_info:
+                    st.caption(f"💡 Der Kunde kann sich mit {' oder '.join(login_info)} anmelden.")
+                else:
+                    st.caption("💡 Bitte Email (und optional Benutzername) eingeben.")
                 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -1034,11 +1030,10 @@ elif st.session_state.current_page == 'kunden':
                 if submit:
                     if not kunde_name or not email:
                         st.error("⚠️ Name und Email sind Pflichtfelder!")
-                    elif create_login and (not login_passwort or login_passwort != login_passwort_confirm):
-                        if not login_passwort:
-                            st.error("⚠️ Bitte geben Sie ein Passwort ein, wenn Sie ein Login erstellen möchten!")
-                        else:
-                            st.error("⚠️ Die Passwörter stimmen nicht überein!")
+                    elif not login_passwort:
+                        st.error("⚠️ Passwort ist ein Pflichtfeld!")
+                    elif login_passwort != login_passwort_confirm:
+                        st.error("⚠️ Die Passwörter stimmen nicht überein!")
                     else:
                         # Prüfen ob Email oder Benutzername bereits als Login existiert
                         users = load_users()
@@ -1066,18 +1061,16 @@ elif st.session_state.current_page == 'kunden':
                             customers[kunde_id] = customer_data
                             save_customers(customers)
                             
-                            # Login erstellen, falls gewünscht
-                            if create_login and login_passwort:
-                                # Login mit Email (immer)
-                                users[email] = login_passwort
-                                # Login mit Benutzername (falls vorhanden)
-                                if username_optional:
-                                    users[username_optional] = login_passwort
-                                save_users(users)
-                                login_info = [f"Email: {email}"]
-                                if username_optional:
-                                    login_info.append(f"Benutzername: {username_optional}")
-                                st.success(f"✅ Kunde '{kunde_name}' erfolgreich hinzugefügt mit {initial_credits} Credits und Login erstellt ({' | '.join(login_info)})!")
-                            else:
-                                st.success(f"✅ Kunde '{kunde_name}' erfolgreich hinzugefügt mit {initial_credits} Credits!")
+                            # Login automatisch erstellen (immer, da Pflicht)
+                            # Login mit Email (immer)
+                            users[email] = login_passwort
+                            # Login mit Benutzername (falls vorhanden)
+                            if username_optional:
+                                users[username_optional] = login_passwort
+                            save_users(users)
+                            
+                            login_info = [f"Email: {email}"]
+                            if username_optional:
+                                login_info.append(f"Benutzername: {username_optional}")
+                            st.success(f"✅ Kunde '{kunde_name}' erfolgreich hinzugefügt mit {initial_credits} Credits und Login erstellt ({' | '.join(login_info)})!")
                             st.rerun()
