@@ -8,7 +8,8 @@ from fpdf import FPDF
 import time
 from datetime import date
 from PIL import Image
-import urllib.parse 
+import urllib.parse
+import uuid 
 
 # Word-Modul sicher laden
 try:
@@ -41,10 +42,23 @@ st.markdown(f"""
 
 # DATENBANK
 USER_DB_FILE = "users.json"
+CUSTOMERS_DB_FILE = "customers.json"
+
 def load_users():
     if not os.path.exists(USER_DB_FILE):
         with open(USER_DB_FILE, "w") as f: json.dump({"admin": "1234"}, f)
     with open(USER_DB_FILE, "r") as f: return json.load(f)
+
+def load_customers():
+    if not os.path.exists(CUSTOMERS_DB_FILE):
+        with open(CUSTOMERS_DB_FILE, "w") as f: json.dump({}, f)
+    with open(CUSTOMERS_DB_FILE, "r") as f: return json.load(f)
+
+def save_customers(customers):
+    with open(CUSTOMERS_DB_FILE, "w") as f: json.dump(customers, f, indent=2)
+
+def is_admin():
+    return st.session_state.logged_in and st.session_state.username == "admin"
 
 # API KEY CHECK
 try:
@@ -259,6 +273,7 @@ if 'app_step' not in st.session_state: st.session_state.app_step = 'screen_a'
 if 'analysis_data' not in st.session_state: st.session_state.analysis_data = []
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'current_page' not in st.session_state: st.session_state.current_page = 'home'
+if 'username' not in st.session_state: st.session_state.username = None
 
 # SIDEBAR
 with st.sidebar:
@@ -267,19 +282,34 @@ with st.sidebar:
         
     st.title("Menü")
     page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV"]
-    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3}
+    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'kunden':4}
+    
+    # Admin-Menüpunkt hinzufügen, wenn Admin eingeloggt
+    if is_admin():
+        page_options.append("👥 Kundenverwaltung")
+        p_map['kunden'] = len(page_options) - 1
+    
     curr_idx = p_map.get(st.session_state.current_page, 0)
+    # Sicherstellen, dass der Index nicht außerhalb des Bereichs liegt
+    if curr_idx >= len(page_options):
+        curr_idx = 0
+        st.session_state.current_page = 'home'
+    
     page = st.radio("Bereich wählen:", page_options, index=curr_idx)
     
     if page == "🏠 Startseite": st.session_state.current_page = 'home'
     elif page == "🔍 SafeSite-Check": st.session_state.current_page = 'safesite'
     elif page == "📋 SUVA Regeln": st.session_state.current_page = 'suva'
     elif page == "⚖️ BauAV": st.session_state.current_page = 'bauav'
+    elif page == "👥 Kundenverwaltung": st.session_state.current_page = 'kunden'
     
-    if st.session_state.current_page == 'safesite' and st.session_state.logged_in:
+    if st.session_state.logged_in:
         st.divider()
+        st.info(f"✅ Eingeloggt als: **{st.session_state.username}**")
         if st.button("Logout"): 
             st.session_state.logged_in = False
+            st.session_state.username = None
+            st.session_state.current_page = 'home'
             st.rerun()
 
 # HAUPTBEREICH
@@ -299,6 +329,7 @@ elif st.session_state.current_page == 'safesite':
             users = load_users()
             if u in users and users[u] == p:
                 st.session_state.logged_in = True
+                st.session_state.username = u
                 st.rerun()
             else: st.error("Falsch")
     else:
@@ -497,3 +528,74 @@ elif st.session_state.current_page == 'bauav':
     bauav_item(20, "Gräben und Schächte", "Wände von Gräben müssen ab 1.50m Tiefe gesichert (verspriesst/geböscht) werden.")
     bauav_item(22, "Ordnung", "Materialien sind stabil zu lagern. Keine Gefährdung durch Umkippen oder Wegrollen.")
     bauav_item(47, "Gerüste", "Gerüste müssen standfest sein und über sichere Zugänge verfügen. Beläge lückenlos.")
+
+elif st.session_state.current_page == 'kunden':
+    if not is_admin():
+        st.error("⛔ Zugriff verweigert. Diese Seite ist nur für Administratoren verfügbar.")
+        st.info("Bitte als Admin einloggen, um auf die Kundenverwaltung zuzugreifen.")
+    else:
+        st.header("👥 Kundenverwaltung")
+        st.markdown("---")
+        
+        customers = load_customers()
+        
+        # Tab-Layout
+        tab1, tab2 = st.tabs(["📋 Kundenliste", "➕ Neuen Kunden hinzufügen"])
+        
+        with tab1:
+            st.subheader("Alle Kunden")
+            if not customers:
+                st.info("Noch keine Kunden vorhanden. Fügen Sie einen neuen Kunden hinzu.")
+            else:
+                for kunde_id, kunde_data in customers.items():
+                    with st.container(border=True):
+                        col1, col2 = st.columns([3, 1])
+                        with col1:
+                            st.markdown(f"### {kunde_data.get('name', 'Unbekannt')}")
+                            st.write(f"**Firma:** {kunde_data.get('firma', '-')}")
+                            st.write(f"**Email:** {kunde_data.get('email', '-')}")
+                            st.write(f"**Telefon:** {kunde_data.get('telefon', '-')}")
+                            if 'adresse' in kunde_data:
+                                st.write(f"**Adresse:** {kunde_data['adresse']}")
+                        with col2:
+                            if st.button("🗑️ Löschen", key=f"delete_{kunde_id}"):
+                                del customers[kunde_id]
+                                save_customers(customers)
+                                st.success("Kunde gelöscht!")
+                                st.rerun()
+                        st.divider()
+        
+        with tab2:
+            st.subheader("Neuen Kunden hinzufügen")
+            with st.form("neuer_kunde", clear_on_submit=True):
+                kunde_name = st.text_input("Name *", placeholder="Max Mustermann")
+                firma = st.text_input("Firma", placeholder="Mustermann AG")
+                email = st.text_input("Email *", placeholder="max@mustermann.ch")
+                telefon = st.text_input("Telefon", placeholder="+41 79 123 45 67")
+                adresse = st.text_area("Adresse", placeholder="Musterstrasse 123\n8000 Zürich")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    submit = st.form_submit_button("✅ Kunde hinzufügen", use_container_width=True)
+                with col2:
+                    cancel = st.form_submit_button("❌ Abbrechen", use_container_width=True)
+                
+                if submit:
+                    if not kunde_name or not email:
+                        st.error("⚠️ Name und Email sind Pflichtfelder!")
+                    else:
+                        # Eindeutige ID generieren
+                        kunde_id = str(uuid.uuid4())[:8]
+                        
+                        # Kunde hinzufügen
+                        customers[kunde_id] = {
+                            "name": kunde_name,
+                            "firma": firma,
+                            "email": email,
+                            "telefon": telefon,
+                            "adresse": adresse,
+                            "erstellt_am": date.today().strftime('%d.%m.%Y')
+                        }
+                        save_customers(customers)
+                        st.success(f"✅ Kunde '{kunde_name}' erfolgreich hinzugefügt!")
+                        st.rerun()
