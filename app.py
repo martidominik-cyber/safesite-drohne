@@ -71,17 +71,36 @@ def get_customer_by_email(email):
             return kunde_id, kunde_data
     return None, None
 
-def get_customer_credits(email):
-    """Gibt die Credits eines Kunden zurück (0 falls nicht gefunden)"""
-    kunde_id, kunde_data = get_customer_by_email(email)
+def get_customer_by_username_or_email(username_or_email):
+    """Findet einen Kunden anhand Email oder Benutzername"""
+    customers = load_customers()
+    for kunde_id, kunde_data in customers.items():
+        # Prüfe Email
+        if kunde_data.get('email') == username_or_email:
+            return kunde_id, kunde_data
+        # Prüfe Benutzername
+        if kunde_data.get('username') and kunde_data.get('username') == username_or_email:
+            return kunde_id, kunde_data
+    return None, None
+
+def get_customer_email_from_login(username_or_email):
+    """Gibt die Email eines Kunden zurück basierend auf Login-Username oder Email"""
+    kunde_id, kunde_data = get_customer_by_username_or_email(username_or_email)
+    if kunde_data:
+        return kunde_data.get('email', username_or_email)
+    return username_or_email
+
+def get_customer_credits(email_or_username):
+    """Gibt die Credits eines Kunden zurück (0 falls nicht gefunden) - akzeptiert Email oder Username"""
+    kunde_id, kunde_data = get_customer_by_username_or_email(email_or_username)
     if kunde_data:
         return int(kunde_data.get('credits', 0))
     return 0
 
-def deduct_credit(email):
-    """Zieht 1 Credit vom Kunden ab und speichert"""
+def deduct_credit(email_or_username):
+    """Zieht 1 Credit vom Kunden ab und speichert - akzeptiert Email oder Username"""
     customers = load_customers()
-    kunde_id, kunde_data = get_customer_by_email(email)
+    kunde_id, kunde_data = get_customer_by_username_or_email(email_or_username)
     if kunde_id and kunde_data:
         current_credits = int(kunde_data.get('credits', 0))
         if current_credits > 0:
@@ -413,20 +432,41 @@ with st.sidebar:
     # Login-Bereich in Sidebar
     if not st.session_state.logged_in:
         st.markdown("### 🔐 Login")
-        st.info("💡 **Admin:** Verwenden Sie 'admin' als Username. **Kunden:** Verwenden Sie Ihre Email-Adresse als Username.")
+        st.info("💡 **Admin:** Verwenden Sie 'admin' als Username. **Kunden:** Verwenden Sie Ihre Email-Adresse oder Ihren Benutzernamen.")
         
         with st.form("login_form", clear_on_submit=False):
-            u = st.text_input("Username", placeholder="admin oder Email-Adresse", key="sidebar_username")
+            u = st.text_input("Username / Email", placeholder="admin, Email oder Benutzername", key="sidebar_username")
             p = st.text_input("Passwort", type="password", key="sidebar_password")
             if st.form_submit_button("Einloggen", use_container_width=True, type="primary"):
                 users = load_users()
+                # Direkter Login-Check (für Admin oder wenn genau der Key existiert)
                 if u in users and users[u] == p:
                     st.session_state.logged_in = True
                     st.session_state.username = u
                     st.session_state.show_login = False
                     st.rerun()
                 else:
-                    st.error("❌ Falscher Username oder Passwort!")
+                    # Prüfe ob es ein Kunde ist (Email oder Benutzername)
+                    kunde_id, kunde_data = get_customer_by_username_or_email(u)
+                    if kunde_data:
+                        # Finde den korrekten Login-Key (kann Email oder Username sein)
+                        customer_email = kunde_data.get('email', '')
+                        customer_username = kunde_data.get('username', '')
+                        
+                        # Prüfe ob Login mit Email existiert
+                        if customer_email and customer_email in users and users[customer_email] == p:
+                            st.session_state.logged_in = True
+                            st.session_state.username = customer_email  # Speichere Email als username
+                            st.session_state.show_login = False
+                            st.rerun()
+                        # Prüfe ob Login mit Benutzername existiert
+                        elif customer_username and customer_username in users and users[customer_username] == p:
+                            st.session_state.logged_in = True
+                            st.session_state.username = customer_username
+                            st.session_state.show_login = False
+                            st.rerun()
+                    
+                    st.error("❌ Falscher Username/Email oder Passwort!")
     else:
         st.markdown("### 👤 Benutzer")
         st.info(f"✅ Eingeloggt als: **{st.session_state.username}**")
@@ -806,7 +846,10 @@ elif st.session_state.current_page == 'kunden':
                             st.markdown(f"### {kunde_data.get('name', 'Unbekannt')}")
                             st.write(f"**Firma:** {kunde_data.get('firma', '-')}")
                             email = kunde_data.get('email', '')
+                            username = kunde_data.get('username', '')
                             st.write(f"**Email:** {email}")
+                            if username:
+                                st.write(f"**Benutzername:** {username}")
                             st.write(f"**Telefon:** {kunde_data.get('telefon', '-')}")
                             if 'adresse' in kunde_data:
                                 st.write(f"**Adresse:** {kunde_data['adresse']}")
@@ -816,13 +859,22 @@ elif st.session_state.current_page == 'kunden':
                             st.metric("🪙 SafeSite Credits", credits)
                             
                             # Login-Status anzeigen
-                            if email and email in users:
+                            has_login_email = email and email in users
+                            has_login_username = username and username in users
+                            if has_login_email or has_login_username:
                                 st.success("✅ Login aktiv")
-                                st.caption(f"Username: {email}")
+                                login_info = []
+                                if has_login_email:
+                                    login_info.append(f"Email: {email}")
+                                if has_login_username:
+                                    login_info.append(f"Username: {username}")
+                                st.caption(" | ".join(login_info))
                             else:
                                 st.warning("⚠️ Kein Login erstellt")
                         with col2:
-                            if email and email in users:
+                            has_login_email = email and email in users
+                            has_login_username = username and username in users
+                            if has_login_email or has_login_username:
                                 if st.button("🔑 Passwort ändern", key=f"passwd_{kunde_id}"):
                                     st.session_state[f"edit_passwd_{kunde_id}"] = True
                                     st.rerun()
@@ -842,7 +894,9 @@ elif st.session_state.current_page == 'kunden':
                                 # Login aus users.json löschen (falls vorhanden)
                                 if email and email in users:
                                     del users[email]
-                                    save_users(users)
+                                if username and username in users:
+                                    del users[username]
+                                save_users(users)
                                 st.success("Kunde gelöscht!")
                                 st.rerun()
                         
@@ -875,7 +929,12 @@ elif st.session_state.current_page == 'kunden':
                                 with col_a:
                                     if st.form_submit_button("✅ Passwort ändern", use_container_width=True):
                                         if new_pass and new_pass == new_pass_confirm:
-                                            users[email] = new_pass
+                                            # Aktualisiere Passwort für Email-Login (falls vorhanden)
+                                            if email and email in users:
+                                                users[email] = new_pass
+                                            # Aktualisiere Passwort für Username-Login (falls vorhanden)
+                                            if username and username in users:
+                                                users[username] = new_pass
                                             save_users(users)
                                             st.session_state[f"edit_passwd_{kunde_id}"] = False
                                             st.success("Passwort erfolgreich geändert!")
@@ -893,17 +952,34 @@ elif st.session_state.current_page == 'kunden':
                         if st.session_state.get(f"create_login_{kunde_id}", False):
                             st.divider()
                             with st.form(f"form_create_login_{kunde_id}"):
-                                st.info(f"Login wird für: {email} erstellt")
+                                st.info(f"Login wird für: {kunde_data.get('name', 'Kunde')} erstellt")
+                                login_options = []
+                                if email:
+                                    login_options.append(f"Email: {email}")
+                                if username:
+                                    login_options.append(f"Benutzername: {username}")
+                                if login_options:
+                                    st.caption(" | ".join(login_options))
                                 new_pass = st.text_input("Passwort", type="password", key=f"create_pass_{kunde_id}")
                                 new_pass_confirm = st.text_input("Passwort bestätigen", type="password", key=f"create_pass_confirm_{kunde_id}")
                                 col_a, col_b = st.columns(2)
                                 with col_a:
                                     if st.form_submit_button("✅ Login erstellen", use_container_width=True):
                                         if new_pass and new_pass == new_pass_confirm:
-                                            users[email] = new_pass
+                                            # Erstelle Login mit Email (immer)
+                                            if email:
+                                                users[email] = new_pass
+                                            # Erstelle auch Login mit Benutzername (falls vorhanden)
+                                            if username:
+                                                users[username] = new_pass
                                             save_users(users)
                                             st.session_state[f"create_login_{kunde_id}"] = False
-                                            st.success(f"Login für {email} erfolgreich erstellt!")
+                                            login_info = []
+                                            if email:
+                                                login_info.append(f"Email: {email}")
+                                            if username:
+                                                login_info.append(f"Username: {username}")
+                                            st.success(f"Login erfolgreich erstellt! ({' | '.join(login_info)})")
                                             st.rerun()
                                         elif new_pass != new_pass_confirm:
                                             st.error("Passwörter stimmen nicht überein!")
@@ -922,6 +998,7 @@ elif st.session_state.current_page == 'kunden':
                 kunde_name = st.text_input("Name *", placeholder="Max Mustermann")
                 firma = st.text_input("Firma", placeholder="Mustermann AG")
                 email = st.text_input("Email *", placeholder="max@mustermann.ch")
+                username_optional = st.text_input("Benutzername (optional)", placeholder="max.mustermann", help="Optional: Falls leer, kann sich der Kunde nur mit Email einloggen. Falls gesetzt, kann er sich mit Email ODER Benutzername einloggen.")
                 telefon = st.text_input("Telefon", placeholder="+41 79 123 45 67")
                 adresse = st.text_area("Adresse", placeholder="Musterstrasse 123\n8000 Zürich")
                 
@@ -938,8 +1015,15 @@ elif st.session_state.current_page == 'kunden':
                 if create_login:
                     login_passwort = st.text_input("Passwort", type="password", key="new_kunde_pass")
                     login_passwort_confirm = st.text_input("Passwort bestätigen", type="password", key="new_kunde_pass_confirm")
-                    email_placeholder = email if email else "(Email eingeben)"
-                    st.caption(f"💡 Der Kunde kann sich dann mit der Email '{email_placeholder}' als Username anmelden.")
+                    login_info = []
+                    if email:
+                        login_info.append(f"Email: {email}")
+                    if username_optional:
+                        login_info.append(f"Benutzername: {username_optional}")
+                    if login_info:
+                        st.caption(f"💡 Der Kunde kann sich dann mit {' oder '.join(login_info)} anmelden.")
+                    else:
+                        st.caption("💡 Bitte Email (und optional Benutzername) eingeben.")
                 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -956,16 +1040,18 @@ elif st.session_state.current_page == 'kunden':
                         else:
                             st.error("⚠️ Die Passwörter stimmen nicht überein!")
                     else:
-                        # Prüfen ob Email bereits als Username existiert
+                        # Prüfen ob Email oder Benutzername bereits als Login existiert
                         users = load_users()
                         if email in users:
                             st.error(f"⚠️ Ein Login mit der Email '{email}' existiert bereits!")
+                        elif username_optional and username_optional in users:
+                            st.error(f"⚠️ Ein Login mit dem Benutzernamen '{username_optional}' existiert bereits!")
                         else:
                             # Eindeutige ID generieren
                             kunde_id = str(uuid.uuid4())[:8]
                             
                             # Kunde hinzufügen
-                            customers[kunde_id] = {
+                            customer_data = {
                                 "name": kunde_name,
                                 "firma": firma,
                                 "email": email,
@@ -974,13 +1060,24 @@ elif st.session_state.current_page == 'kunden':
                                 "credits": int(initial_credits),
                                 "erstellt_am": date.today().strftime('%d.%m.%Y')
                             }
+                            # Benutzername nur hinzufügen, wenn angegeben
+                            if username_optional:
+                                customer_data["username"] = username_optional
+                            customers[kunde_id] = customer_data
                             save_customers(customers)
                             
                             # Login erstellen, falls gewünscht
                             if create_login and login_passwort:
+                                # Login mit Email (immer)
                                 users[email] = login_passwort
+                                # Login mit Benutzername (falls vorhanden)
+                                if username_optional:
+                                    users[username_optional] = login_passwort
                                 save_users(users)
-                                st.success(f"✅ Kunde '{kunde_name}' erfolgreich hinzugefügt mit {initial_credits} Credits und Login erstellt!")
+                                login_info = [f"Email: {email}"]
+                                if username_optional:
+                                    login_info.append(f"Benutzername: {username_optional}")
+                                st.success(f"✅ Kunde '{kunde_name}' erfolgreich hinzugefügt mit {initial_credits} Credits und Login erstellt ({' | '.join(login_info)})!")
                             else:
                                 st.success(f"✅ Kunde '{kunde_name}' erfolgreich hinzugefügt mit {initial_credits} Credits!")
                             st.rerun()
