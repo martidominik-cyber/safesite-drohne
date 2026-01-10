@@ -547,22 +547,35 @@ elif st.session_state.current_page == 'safesite':
             files = []
             
             if mode == "📹 Video":
-                st.info("💡 **Tipp:** Sie können Videos aus Ihrer Mediathek/Galerie auswählen (funktioniert auf Handy, Tablet und Laptop).")
+                st.info("💡 **Hinweis:** Auf mobilen Geräten wählen Sie bitte Videos über den Datei-Explorer aus.")
                 vf = st.file_uploader("Video hochladen", type=["mp4", "mov", "avi"], help="Unterstützte Formate: MP4, MOV, AVI")
                 if vf:
-                    st.success(f"✅ Video ausgewählt: {vf.name}")
-                    if st.button("Analyse starten", type="primary", use_container_width=True):
-                        suffix = os.path.splitext(vf.name)[1] if os.path.splitext(vf.name)[1] else '.mp4'
-                        t = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-                        t.write(vf.read())
-                        files.append(t.name)
-                        t.close()
-                        st.session_state.m_type = "video"
-                        st.session_state.m_files = files
-                        st.session_state.app_step = 'screen_b'
-                        st.rerun()
+                    try:
+                        st.success(f"✅ Video ausgewählt: {vf.name}")
+                        if st.button("Analyse starten", type="primary", use_container_width=True):
+                            try:
+                                suffix = os.path.splitext(vf.name)[1] if os.path.splitext(vf.name)[1] else '.mp4'
+                                t = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                                # Datei in Chunks lesen für bessere Performance
+                                chunk_size = 8192
+                                while True:
+                                    chunk = vf.read(chunk_size)
+                                    if not chunk:
+                                        break
+                                    t.write(chunk)
+                                t.close()
+                                files.append(t.name)
+                                st.session_state.m_type = "video"
+                                st.session_state.m_files = files
+                                st.session_state.app_step = 'screen_b'
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Fehler beim Hochladen: {str(e)}")
+                                st.info("💡 Bitte versuchen Sie es erneut oder verwenden Sie eine kleinere Datei.")
+                    except Exception as e:
+                        st.error(f"❌ Fehler beim Lesen der Datei: {str(e)}")
             else:
-                st.info("💡 **Tipp:** Sie können Fotos aus Ihrer Galerie/Mediathek auswählen (funktioniert auf Handy, Tablet und Laptop).")
+                st.info("💡 **Hinweis:** Auf mobilen Geräten wählen Sie bitte Fotos über den Datei-Explorer aus.")
                 pf = st.file_uploader(
                     "Fotos hochladen", 
                     type=["jpg", "jpeg", "png", "heic", "heif", "webp"], 
@@ -570,45 +583,66 @@ elif st.session_state.current_page == 'safesite':
                     help="Wählen Sie ein oder mehrere Fotos aus. Unterstützt: JPG, PNG, HEIC (iPhone), WEBP"
                 )
                 if pf:
-                    st.success(f"✅ {len(pf)} Foto(s) ausgewählt")
-                    # Zeige Dateinamen an
-                    for idx, f in enumerate(pf[:5]):  # Zeige max. 5 Dateien
-                        st.caption(f"📷 {f.name}")
-                    if len(pf) > 5:
-                        st.caption(f"... und {len(pf) - 5} weitere")
-                    
-                    if st.button("Analyse starten", type="primary", use_container_width=True):
-                        with st.spinner("Bilder werden verarbeitet..."):
-                            for f in pf:
-                                # Original-Dateiendung beibehalten
-                                original_ext = os.path.splitext(f.name)[1].lower() if os.path.splitext(f.name)[1] else ''
-                                # Verwende passende Endung basierend auf Dateityp
-                                if original_ext in ['.heic', '.heif']:
-                                    suffix = '.heic'  # Wird später konvertiert
-                                elif original_ext in ['.jpg', '.jpeg']:
-                                    suffix = '.jpg'
-                                elif original_ext == '.png':
-                                    suffix = '.png'
-                                elif original_ext == '.webp':
-                                    suffix = '.webp'
-                                else:
-                                    suffix = '.jpg'  # Standard
-                                
-                                t = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-                                t.write(f.read())
-                                files.append(t.name)
-                                t.close()
-                            
-                            # Konvertiere HEIC/HEIF Dateien falls nötig
-                            converted_files = []
-                            for f_path in files:
-                                converted_path = convert_image_if_needed(f_path)
-                                converted_files.append(converted_path)
-                            
-                            st.session_state.m_type = "images"
-                            st.session_state.m_files = converted_files
-                            st.session_state.app_step = 'screen_b'
-                            st.rerun()
+                    try:
+                        st.success(f"✅ {len(pf)} Foto(s) ausgewählt")
+                        # Zeige Dateinamen an
+                        for idx, f in enumerate(pf[:5]):  # Zeige max. 5 Dateien
+                            st.caption(f"📷 {f.name}")
+                        if len(pf) > 5:
+                            st.caption(f"... und {len(pf) - 5} weitere")
+                        
+                        if st.button("Analyse starten", type="primary", use_container_width=True):
+                            with st.spinner("Bilder werden verarbeitet..."):
+                                try:
+                                    for f in pf:
+                                        # Original-Dateiendung beibehalten
+                                        original_ext = os.path.splitext(f.name)[1].lower() if os.path.splitext(f.name)[1] else ''
+                                        # Verwende passende Endung basierend auf Dateityp
+                                        if original_ext in ['.heic', '.heif']:
+                                            suffix = '.heic'  # Wird später konvertiert
+                                        elif original_ext in ['.jpg', '.jpeg']:
+                                            suffix = '.jpg'
+                                        elif original_ext == '.png':
+                                            suffix = '.png'
+                                        elif original_ext == '.webp':
+                                            suffix = '.webp'
+                                        else:
+                                            suffix = '.jpg'  # Standard
+                                        
+                                        t = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                                        # Datei in Chunks lesen für bessere Performance und Fehlerbehandlung
+                                        chunk_size = 8192
+                                        while True:
+                                            chunk = f.read(chunk_size)
+                                            if not chunk:
+                                                break
+                                            t.write(chunk)
+                                        t.close()
+                                        files.append(t.name)
+                                    
+                                    # Konvertiere HEIC/HEIF Dateien falls nötig
+                                    converted_files = []
+                                    for f_path in files:
+                                        converted_path = convert_image_if_needed(f_path)
+                                        converted_files.append(converted_path)
+                                    
+                                    st.session_state.m_type = "images"
+                                    st.session_state.m_files = converted_files
+                                    st.session_state.app_step = 'screen_b'
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"❌ Fehler beim Hochladen der Dateien: {str(e)}")
+                                    st.info("💡 Bitte versuchen Sie es erneut. Stellen Sie sicher, dass Sie eine stabile Internetverbindung haben.")
+                                    # Aufräumen: Temporäre Dateien löschen
+                                    for f_path in files:
+                                        try:
+                                            if os.path.exists(f_path):
+                                                os.remove(f_path)
+                                        except:
+                                            pass
+                    except Exception as e:
+                        st.error(f"❌ Fehler beim Lesen der Dateien: {str(e)}")
+                        st.info("💡 Bitte versuchen Sie es erneut oder wählen Sie andere Dateien aus.")
 
         elif st.session_state.app_step == 'screen_b':
             st.subheader("🕵️‍♂️ KI-Analyse (Gemini 3.0)")
