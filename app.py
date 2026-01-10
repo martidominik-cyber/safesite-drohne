@@ -852,20 +852,76 @@ elif st.session_state.current_page == 'suva':
 
 elif st.session_state.current_page == 'bauav':
     st.header("⚖️ Bauarbeitenverordnung (BauAV)")
-    st.write("Die wichtigsten Artikel für den Hochbau:")
-
+    st.markdown("**Nachschlagewerk für die wichtigsten Artikel der Schweizer Bauarbeitenverordnung**")
+    
     def bauav_item(nr, titel, text):
         with st.expander(f"Art. {nr} - {titel}"):
             st.write(text)
-
-    bauav_item(3, "Planung und Organisation", "Die Arbeiten müssen so geplant werden, dass die Sicherheit gewährleistet ist. Ordnung auf der Baustelle ist Pflicht.")
-    bauav_item(10, "Verkehrswege", "Verkehrswege müssen sicher begehbar sein. Hindernisse und Stolperstellen sind zu entfernen.")
-    bauav_item(12, "Absperrung", "Die Baustelle muss gegen unbefugtes Betreten gesichert sein (Zäune, Signale).")
-    bauav_item(17, "Absturzsicherung", "Absturzkanten sind ab 2.0m Höhe zu sichern (Seitenschutz). Bei Dächern ab 3.0m.")
-    bauav_item(19, "Herabfallende Gegenstände", "Schutz vor herabfallendem Material (Schutzdächer, Absperrungen).")
-    bauav_item(20, "Gräben und Schächte", "Wände von Gräben müssen ab 1.50m Tiefe gesichert (verspriesst/geböscht) werden.")
-    bauav_item(22, "Ordnung", "Materialien sind stabil zu lagern. Keine Gefährdung durch Umkippen oder Wegrollen.")
-    bauav_item(47, "Gerüste", "Gerüste müssen standfest sein und über sichere Zugänge verfügen. Beläge lückenlos.")
+    
+    # --- KATEGORIE 1: ORGANISATION & GRUNDLAGEN ---
+    st.markdown("### 1. Organisation & Grundlagen")
+    bauav_item(3, "Planung und Organisation", "Bauarbeiten müssen so geplant werden, dass das Risiko von Unfällen und Gesundheitsbeeinträchtigungen möglichst klein ist. Die Baustelle muss geordnet sein.")
+    bauav_item(4, "Kontrolle der Arbeitsmittel", "Gerüste, Maschinen und Geräte müssen vor jedem Gebrauch auf Mängel geprüft werden. Defektes Material darf nicht verwendet werden.")
+    bauav_item(5, "Persönliche Schutzausrüstung (PSA)", "Helmpflicht ist obligatorisch. Je nach Gefährdung sind Warnwesten, Sicherheitsschuhe, Gehörschutz oder Schutzbrillen zu tragen.")
+    bauav_item(6, "Verhalten bei Gefahr", "Bei unmittelbarer Gefahr (z.B. drohender Einsturz, Unwetter) sind die Arbeiten sofort einzustellen und die Gefahrenzone zu verlassen.")
+    bauav_item(12, "Absperrung der Baustelle", "Die Baustelle muss gegen unbefugtes Betreten gesichert sein. Zäune, Signale und Warnschilder sind erforderlich.")
+    bauav_item(22, "Ordnung auf der Baustelle", "Materialien sind stabil zu lagern. Keine Gefährdung durch Umkippen oder Wegrollen. Arbeitsplätze müssen aufgeräumt sein.")
+    
+    st.divider()
+    
+    # --- KATEGORIE 2: ABSTURZSICHERUNG (DAS WICHTIGSTE) ---
+    st.markdown("### 2. Absturzsicherung & Öffnungen")
+    bauav_item(17, "Absturzkanten (Allgemein)", "Ab einer Absturzhöhe von 2.00 m ist ein Seitenschutz zwingend (Holm, Zwischenholm, Bordbrett). Die Höhe des Seitenschutzes muss mindestens 1.00 m betragen.")
+    bauav_item(25, "Bodenöffnungen", "Löcher in Böden und Decken müssen durchbruchsicher abgedeckt und gegen Verschieben gesichert sein. Öffnungen sind deutlich zu kennzeichnen.")
+    bauav_item(41, "Arbeiten an Dächern", "Ab 2.00 m Absturzhöhe müssen Dächer durch Fassadengerüste, Spenglerläufe oder Auffangnetze gesichert werden. Steildächer ab 30° Neigung zusätzlich mit Seilsicherung.")
+    bauav_item(19, "Herabfallende Gegenstände", "Arbeitsbereiche, über denen gearbeitet wird, müssen gesichert sein (Schutzdächer oder Absperrungen). Werkzeuge müssen gegen Herunterfallen gesichert werden.")
+    bauav_item(18, "Schutz der Personen unterhalb", "Wenn Arbeiten in Höhe ausgeführt werden, muss der Bereich darunter abgesperrt oder mit Schutzdächern gesichert sein.")
+    
+    st.divider()
+    
+    # --- KATEGORIE 3: ZUGÄNGE & LEITERN ---
+    st.markdown("### 3. Zugänge, Verkehrswege & Leitern")
+    bauav_item(10, "Verkehrswege", "Wege müssen frei von Hindernissen sein. Stolperstellen (Kabel, Material) sind zu entfernen. Wege müssen ausreichend breit und beleuchtet sein.")
+    bauav_item(15, "Zugänge zu Arbeitsplätzen", "Zugänge müssen sicher sein. Treppentürme sind Leitern vorzuziehen. Steigungen dürfen nicht zu steil sein (max. 45°).")
+    bauav_item(21, "Verwendung von Leitern", "Leitern dürfen nur für kurzzeitige Arbeiten verwendet werden. Sie sind gegen Wegrutschen zu sichern. Niemals auf der obersten Sprosse stehen.")
+    bauav_item(34, "Leitern (Bauart)", "Anlegeleitern müssen die Austrittsstelle um mindestens 1.00 m überragen. Der Neigungswinkel sollte zwischen 65° und 75° liegen.")
+    bauav_item(14, "Treppen und Rampen", "Treppen müssen mindestens 0.80 m breit sein und Handläufe aufweisen. Rampen dürfen nicht steiler als 15° sein.")
+    
+    st.divider()
+    
+    # --- KATEGORIE 4: GERÜSTE ---
+    st.markdown("### 4. Gerüste")
+    bauav_item(47, "Gerüste (Allgemein)", "Gerüste müssen standfest sein. Der Belag muss lückenlos verlegt sein. Änderungen dürfen nur vom Gerüstbauer vorgenommen werden. Tägliche Sichtkontrolle ist erforderlich.")
+    bauav_item(57, "Rollgerüste", "Rollgerüste dürfen nicht verschoben werden, solange sich Personen darauf befinden. Die Räder müssen arretiert sein. Maximale Höhe: 12 m.")
+    bauav_item(48, "Gerüstbeläge", "Beläge müssen durchbruchsicher sein. Überlappungen müssen mindestens 20 cm betragen. Keine schadhaften Bretter verwenden.")
+    bauav_item(49, "Gerüstverankerung", "Fassadengerüste müssen ausreichend verankert sein. Abstände der Verankerungen: alle 4 m in der Höhe, alle 6 m in der Breite.")
+    bauav_item(50, "Gerüstmontage", "Gerüste dürfen nur von qualifiziertem Personal errichtet werden. Standsicherheitsnachweis ist erforderlich bei Gerüsten über 3 m Höhe.")
+    
+    st.divider()
+    
+    # --- KATEGORIE 5: TIEFBAU & GRÄBEN ---
+    st.markdown("### 5. Tiefbau & Gräben")
+    bauav_item(20, "Gräben und Schächte", "Ab einer Tiefe von 1.50 m müssen Grabenwände gespriesst oder geböscht werden. Bei fliessenden Böden schon früher. Verbau muss durchbruchsicher sein.")
+    bauav_item(82, "Arbeiten in der Nähe von Leitungen", "Bei Grabarbeiten ist auf Werkleitungen (Gas, Strom, Wasser) zu achten. Pläne konsultieren! Mindestabstände beachten (Strom: 3-5 m je nach Spannung).")
+    bauav_item(23, "Erdarbeiten", "Böschungen müssen stabil sein. Neigung maximal 45° bei bindigen Böden, 35° bei nichtbindigen Böden. Maschinenabstände von Grabenkanten beachten (min. 0.5 m).")
+    bauav_item(81, "Sprengarbeiten", "Sprengarbeiten dürfen nur von qualifiziertem Personal ausgeführt werden. Sicherheitszone muss abgesperrt werden. Mindestabstand: 300 m.")
+    
+    st.divider()
+    
+    # --- KATEGORIE 6: GESUNDHEIT & SPEZIELLES ---
+    st.markdown("### 6. Gesundheit & Spezielle Gefahren")
+    bauav_item(32, "Schutz vor Sonne und Hitze", "Arbeitsplätze sind wenn möglich zu beschatten. Den Mitarbeitern ist genügend Trinkwasser zur Verfügung zu stellen. Pausen an kühlen Orten einplanen.")
+    bauav_item(33, "Staub, Lärm, Vibrationen", "Gesundheitsgefährdende Einwirkungen sind zu minimieren (z.B. Wasser gegen Staub, Gehörschutz bei Lärm über 85 dB(A)). Vibrationen durch Dämpfung reduzieren.")
+    bauav_item(83, "Elektrische Freileitungen", "Für Baumaschinen gelten Mindestabstände zu Freileitungen (Niederspannung 3 m / Hochspannung 5 m+). Näherung nur mit speziellen Massnahmen.")
+    bauav_item(24, "Brandverhütung", "Brennbare Materialien sicher lagern. Feuerlöscher müssen an gut zugänglichen Stellen bereitstehen. Rauchverbot auf Baustellen beachten.")
+    bauav_item(26, "Kranarbeiten", "Krane müssen auf standsicherem Untergrund stehen. Ausleger nicht über Personen schwenken. Lasten sicher anschlagen (mindestens 4-fache Sicherheit).")
+    bauav_item(27, "Hebearbeiten", "Lasten nur von instruiertem Personal anschlagen. Niemals unter schwebenden Lasten stehen. Signale und Kommunikation zwischen Kranführer und Einweiser.")
+    bauav_item(28, "Schweissarbeiten", "Schweissplätze müssen brandgeschützt eingerichtet sein. Brandwachen sind erforderlich. Sauerstoff und brennbare Gase getrennt lagern.")
+    bauav_item(29, "Umgang mit Chemikalien", "Gefahrstoffe nach Sicherheitsdatenblatt handhaben. PSA entsprechend Gefährdung tragen. Behältnisse klar kennzeichnen.")
+    bauav_item(30, "Arbeitsplätze unter der Erde", "Ausreichende Beleuchtung sicherstellen. Belüftung muss gewährleistet sein. Notausgänge kennzeichnen. Gasmessungen durchführen.")
+    bauav_item(31, "Lagerung von Materialien", "Materialien stabil stapeln. Maximale Stapelhöhe beachten. Gänge zwischen Stapeln freihalten (min. 0.8 m).")
+    bauav_item(35, "Baumaschinen", "Maschinen nur von qualifiziertem Personal bedienen. Tägliche Sichtkontrolle erforderlich. Warntöne und Rückspiegel funktionsfähig halten.")
+    bauav_item(36, "Fahrzeuge auf der Baustelle", "Höchstgeschwindigkeit 10 km/h. Fußgängerbereiche kennzeichnen. Fahrzeuge müssen Tageslichtleuchten haben.")
 
 elif st.session_state.current_page == 'kunden':
     if not is_admin():
