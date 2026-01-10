@@ -524,21 +524,6 @@ elif st.session_state.current_page == 'safesite':
     if not st.session_state.logged_in:
         st.header("🔍 SafeSite-Check")
         st.warning("⚠️ Sie müssen sich anmelden, um den SafeSite-Check zu verwenden.")
-        st.info("💡 Bitte verwenden Sie das Login-Formular in der Sidebar (links) um sich anzumelden.")
-        
-        # Button zum Login (visueller Hinweis)
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown("""
-            <div style="text-align: center; padding: 20px;">
-                <p style="font-size: 18px; margin-bottom: 20px;">👉 Bitte nutzen Sie das <strong>Login-Formular in der Sidebar</strong> (links) 👈</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Optional: Button der die Sidebar hervorhebt
-            if st.button("🔐 Zum Login in der Sidebar", type="primary", use_container_width=True):
-                st.info("👈 Bitte verwenden Sie das Login-Formular in der Sidebar links!")
-                st.rerun()
     else:
         # APP START
         if st.session_state.app_step == 'screen_a':
