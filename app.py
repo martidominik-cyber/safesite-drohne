@@ -638,80 +638,193 @@ elif st.session_state.current_page == 'safesite':
                     with cols[i % 3]: st.image(f, caption=f"Bild {i+1}")
 
             if not st.session_state.analysis_data:
-                with st.spinner("KI analysiert (Versuche Gemini 3.0... bitte warten)..."):
-                    try:
-                        genai.configure(api_key=API_KEY)
-                        prompt = """
-                        Du bist ein strenger Schweizer Bau-Sicherheitsprüfer (SiBe).
-                        Analysiere diese Aufnahmen KRITISCH nach BauAV und SUVA.
-                        Suche nach LEBENSGEFAHR (Gräben, Absturz, Armierung).
-                        Antworte NUR als JSON Liste:
-                        [{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "...", "verstoss": "...", "massnahme": "...", "zeitstempel_sekunden": 0, "bild_index": 0}]
-                        """
-                        
-                        # --- HIER IST DIE SCHLAUE SCHLEIFE ---
-                        # Wir probieren die Modelle der Reihe nach durch.
-                        # Wenn 3.0 nicht geht, nimmt er automatisch 2.0 oder 1.5
-                        model_names = [
-                            'gemini-3-pro-preview', 
-                            'gemini-2.0-flash-exp', 
-                            'gemini-1.5-pro',
-                            'gemini-1.5-flash'
-                        ]
-                        
-                        found_result = False
-                        
-                        for mn in model_names:
-                            try:
-                                model = genai.GenerativeModel(mn)
-                                if st.session_state.m_type == "video":
-                                    f = genai.upload_file(st.session_state.m_files[0])
-                                    # Warten (Fix für Hänger)
-                                    while f.state.name == "PROCESSING":
-                                        time.sleep(2)
-                                        f = genai.get_file(f.name)
-                                    res = model.generate_content([f, prompt], generation_config={"response_mime_type": "application/json"})
-                                else:
-                                    # Öffne Bilder und konvertiere bei Bedarf
-                                    imgs = []
-                                    for p in st.session_state.m_files:
-                                        try:
-                                            img = Image.open(p)
-                                            # Stelle sicher, dass Bild im RGB-Format ist
-                                            if img.mode != 'RGB':
-                                                img = img.convert('RGB')
-                                            imgs.append(img)
-                                        except Exception as e:
-                                            st.warning(f"⚠️ Fehler beim Öffnen von {os.path.basename(p)}: {str(e)}")
-                                            # Versuche mit cv2 als Fallback
-                                            try:
-                                                img_array = cv2.imread(p)
-                                                if img_array is not None:
-                                                    img_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
-                                                    img = Image.fromarray(img_rgb)
-                                                    imgs.append(img)
-                                            except:
-                                                st.error(f"❌ Konnte Bild {os.path.basename(p)} nicht verarbeiten")
-                                    
-                                    if not imgs:
-                                        st.error("❌ Keine Bilder konnten verarbeitet werden. Bitte versuchen Sie andere Dateiformate.")
-                                        continue
-                                    
-                                    res = model.generate_content([prompt] + imgs, generation_config={"response_mime_type": "application/json"})
-                                
-                                # Wenn wir hier sind, hat es geklappt!
-                                st.session_state.analysis_data = json.loads(clean_json(res.text))
-                                found_result = True
-                                break # Schleife beenden, wir haben ein Ergebnis
-                            except:
-                                continue # Fehler beim Modell? Nächstes probieren!
-                        
-                        if not found_result:
-                            st.error("Alle KI-Modelle sind gerade ausgelastet oder nicht erreichbar. Bitte später versuchen.")
-                        else:
-                            st.rerun()
+                # Verbesserter Ladebalken mit progressiven Nachrichten
+                progress_placeholder = st.empty()
+                status_placeholder = st.empty()
+                
+                progress_messages = [
+                    "🔍 SafeSite analysiert Gefahren...",
+                    "🔍 SafeSite prüft Absturzsicherungen...",
+                    "🔍 SafeSite kontrolliert Gerüste...",
+                    "🔍 SafeSite überprüft Schweizer Normen...",
+                    "🔍 SafeSite bewertet Sicherheitsrisiken...",
+                    "🔍 SafeSite erstellt Analyse..."
+                ]
+                
+                try:
+                    genai.configure(api_key=API_KEY)
+                    
+                    # Detaillierter Prompt mit spezifischen Schweizer Normen
+                    prompt = """
+Du bist ein äusserst strenger und erfahrener Schweizer Bau-Sicherheitsprüfer (SiBe) mit tiefem Wissen der BauAV und SUVA-Richtlinien.
+
+WICHTIG: Analysiere diese Aufnahmen SYSTEMATISCH und KRITISCH nach allen relevanten Schweizer Sicherheitsnormen.
+
+Für JEDEN erkannten Sicherheitsaspekt musst du folgende PRÄZISE Prüfungen durchführen:
+
+1. GERÜSTE:
+   - Prüfe: Abstand zur Fassade < 30cm? (BauAV Art. 47)
+   - Prüfe: Dreiteiliger Seitenschutz vorhanden? (Holm, Zwischenholm, Bordbrett - mind. 1m hoch)
+   - Prüfe: Beläge lückenlos verlegt?
+   - Prüfe: Standsicherheit gegeben?
+   - Prüfe: Tägliche Kontrolle durchgeführt?
+
+2. ABSTURZKANTEN:
+   - Prüfe: Seitenschutz ab 2.0m Höhe vorhanden? (BauAV Art. 17)
+   - Prüfe: Höhe des Seitenschutzes mind. 1.0m?
+   - Prüfe: Bei Dächern ab 3.0m zusätzliche Sicherung?
+
+3. BODENÖFFNUNGEN:
+   - Prüfe: Durchbruchsichere Abdeckung vorhanden?
+   - Prüfe: Abdeckung gegen Verschieben gesichert?
+   - Prüfe: Öffnung deutlich gekennzeichnet?
+
+4. GRÄBEN UND SCHÄCHTE:
+   - Prüfe: Verspriesst oder geböscht ab 1.50m Tiefe? (BauAV Art. 20)
+   - Prüfe: Bei fliessenden Böden frühere Sicherung?
+   - Prüfe: Durchbruchsicherheit gegeben?
+
+5. LEITERN:
+   - Prüfe: Nur für kurzzeitige Arbeiten verwendet?
+   - Prüfe: Gegen Wegrutschen gesichert?
+   - Prüfe: Überragung mind. 1.0m bei Austrittsstellen?
+   - Prüfe: Neigungswinkel 65-75°?
+
+6. PERSÖNLICHE SCHUTZAUSRÜSTUNG (PSA):
+   - Prüfe: Helm getragen? (PFLICHT)
+   - Prüfe: Sicherheitsschuhe getragen?
+   - Prüfe: Warnweste bei Verkehrsbereichen?
+   - Prüfe: Schutzbrille bei Staub/Spritzern?
+
+7. VERKEHRSWEGE:
+   - Prüfe: Wege frei von Hindernissen?
+   - Prüfe: Stolperstellen entfernt?
+   - Prüfe: Ausreichend breit (min. 0.80m)?
+   - Prüfe: Beleuchtung vorhanden?
+
+8. MATERIALLAGERUNG:
+   - Prüfe: Material stabil gestapelt?
+   - Prüfe: Gänge zwischen Stapeln freigehalten (min. 0.8m)?
+   - Prüfe: Keine Gefahr durch Umkippen?
+
+9. ARBEITEN IN HÖHE:
+   - Prüfe: Bereich unterhalb abgesperrt oder mit Schutzdächern gesichert?
+   - Prüfe: Werkzeuge gegen Herunterfallen gesichert?
+
+10. KRANE UND LASTEN:
+    - Prüfe: Niemand unter schwebenden Lasten?
+    - Prüfe: Lasten sicher angeschlagen (4-fache Sicherheit)?
+    - Prüfe: Kommunikation zwischen Kranführer und Einweiser?
+
+WICHTIGE REGELN:
+- KEINE "Ist ok" Bewertungen ohne konkrete Prüfung!
+- Jede Regel muss EINZELN geprüft werden!
+- Fehlende Elemente müssen als MANGEL erkannt werden!
+- Priorität: "Kritisch" bei Lebensgefahr, "Hoch" bei schweren Verstössen, "Mittel" bei normativen Abweichungen
+
+Antworte NUR als JSON Liste:
+[{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "KONKRETER Mangel mit Massangabe (z.B. 'Abstand Gerüst-Fassade 50cm statt <30cm')", "verstoss": "Konkreter Verstoss gegen BauAV Art. XX oder SUVA-Regel", "massnahme": "Konkrete Massnahme (z.B. 'Gerüst auf <30cm zur Fassade verschieben, dreiteiligen Seitenschutz montieren')", "zeitstempel_sekunden": 0, "bild_index": 0}]
+"""
+                    
+                    # --- HIER IST DIE SCHLAUE SCHLEIFE ---
+                    # Wir probieren die Modelle der Reihe nach durch.
+                    # Wenn 3.0 nicht geht, nimmt er automatisch 2.0 oder 1.5
+                    model_names = [
+                        'gemini-3-pro-preview', 
+                        'gemini-2.0-flash-exp', 
+                        'gemini-1.5-pro',
+                        'gemini-1.5-flash'
+                    ]
+                    
+                    found_result = False
+                    
+                    # Progress-Tracker
+                    progress_step = 0
+                    start_time = time.time()
+                    
+                    for mn in model_names:
+                        try:
+                            # Update Progress Message
+                            if progress_step < len(progress_messages):
+                                status_placeholder.info(f"🔄 {progress_messages[progress_step]}")
+                                progress_step += 1
                             
-                    except Exception as e: st.error(f"Fehler: {e}")
+                            model = genai.GenerativeModel(mn)
+                            if st.session_state.m_type == "video":
+                                status_placeholder.info("🔄 SafeSite lädt Video hoch...")
+                                f = genai.upload_file(st.session_state.m_files[0])
+                                # Warten (Fix für Hänger) mit Progress
+                                while f.state.name == "PROCESSING":
+                                    elapsed = int(time.time() - start_time)
+                                    status_placeholder.info(f"🔄 SafeSite verarbeitet Video... ({elapsed}s)")
+                                    time.sleep(2)
+                                    f = genai.get_file(f.name)
+                                
+                                status_placeholder.info("🔄 SafeSite analysiert Video nach Schweizer Normen...")
+                                res = model.generate_content([f, prompt], generation_config={"response_mime_type": "application/json"})
+                            else:
+                                status_placeholder.info("🔄 SafeSite lädt Bilder...")
+                                # Öffne Bilder und konvertiere bei Bedarf
+                                imgs = []
+                                for idx, p in enumerate(st.session_state.m_files):
+                                    try:
+                                        status_placeholder.info(f"🔄 SafeSite verarbeitet Bild {idx+1}/{len(st.session_state.m_files)}...")
+                                        img = Image.open(p)
+                                        # Stelle sicher, dass Bild im RGB-Format ist
+                                        if img.mode != 'RGB':
+                                            img = img.convert('RGB')
+                                        imgs.append(img)
+                                    except Exception as e:
+                                        st.warning(f"⚠️ Fehler beim Öffnen von {os.path.basename(p)}: {str(e)}")
+                                        # Versuche mit cv2 als Fallback
+                                        try:
+                                            img_array = cv2.imread(p)
+                                            if img_array is not None:
+                                                img_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+                                                img = Image.fromarray(img_rgb)
+                                                imgs.append(img)
+                                        except:
+                                            st.error(f"❌ Konnte Bild {os.path.basename(p)} nicht verarbeiten")
+                                
+                                if not imgs:
+                                    status_placeholder.error("❌ Keine Bilder konnten verarbeitet werden.")
+                                    st.error("❌ Keine Bilder konnten verarbeitet werden. Bitte versuchen Sie andere Dateiformate.")
+                                    continue
+                                
+                                status_placeholder.info("🔄 SafeSite analysiert Bilder nach Schweizer Normen (BauAV & SUVA)...")
+                                # Zeige Progress während der Analyse
+                                elapsed = int(time.time() - start_time)
+                                status_placeholder.info(f"🔄 SafeSite prüft Gerüste, Absturzkanten, Gräben... ({elapsed}s)")
+                                
+                                res = model.generate_content([prompt] + imgs, generation_config={"response_mime_type": "application/json"})
+                            
+                            # Analyse abgeschlossen
+                            elapsed = int(time.time() - start_time)
+                            status_placeholder.success(f"✅ SafeSite Analyse abgeschlossen! ({elapsed}s)")
+                            time.sleep(0.5)  # Kurze Pause, damit die Erfolgsmeldung sichtbar ist
+                            
+                            # Wenn wir hier sind, hat es geklappt!
+                            st.session_state.analysis_data = json.loads(clean_json(res.text))
+                            found_result = True
+                            break # Schleife beenden, wir haben ein Ergebnis
+                        except Exception as e:
+                            elapsed = int(time.time() - start_time)
+                            status_placeholder.warning(f"⚠️ Versuche nächstes Modell... ({elapsed}s)")
+                            continue # Fehler beim Modell? Nächstes probieren!
+                    
+                    # Aufräumen der Placeholders
+                    progress_placeholder.empty()
+                    
+                    if not found_result:
+                        status_placeholder.error("❌ Alle KI-Modelle sind gerade ausgelastet oder nicht erreichbar. Bitte später versuchen.")
+                    else:
+                        status_placeholder.empty()  # Entferne Status-Nachricht
+                        st.rerun()
+                        
+                except Exception as e:
+                    progress_placeholder.empty()
+                    status_placeholder.error(f"❌ Fehler: {e}")
+                    st.error(f"Fehler: {e}")
 
             if st.session_state.analysis_data:
                 st.success(f"⚠️ {len(st.session_state.analysis_data)} Mängel gefunden")
