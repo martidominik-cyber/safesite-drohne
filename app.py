@@ -827,6 +827,11 @@ elif st.session_state.current_page == 'safesite':
 elif st.session_state.current_page == 'suva':
     st.header("📋 Die 8 lebenswichtigen Regeln (SUVA)")
     
+    # Quellenangabe und Hinweis
+    st.info("ℹ️ **Quelle:** Diese Regeln basieren auf den lebenswichtigen Regeln der SUVA. Bilder, Grafiken und Texte: © SUVA. Diese App ist keine offizielle SUVA-App, sondern dient der Arbeitssicherheit im internen Gebrauch.")
+    
+    st.markdown("---")
+    
     suva_regeln = [
         {"titel": "1. Absturzkanten sichern", "desc": "Ab 2.0m Absturzhöhe sind Seitenschutz oder Auffangeinrichtungen zwingend.", "img": "regel_1.png"},
         {"titel": "2. Bodenöffnungen", "desc": "Jede Öffnung muss durchbruchsicher abgedeckt und fixiert sein.", "img": "regel_2.png"},
@@ -844,11 +849,16 @@ elif st.session_state.current_page == 'suva':
             with c1:
                 if os.path.exists(r["img"]):
                     st.image(r["img"], use_container_width=True)
+                    st.caption("📷 **Quelle: SUVA**")
                 else:
                     st.info("🖼️ Bild fehlt")
             with c2:
                 st.subheader(r["titel"])
                 st.write(r["desc"])
+                st.caption("📝 **Basierend auf den lebenswichtigen Regeln der SUVA**")
+    
+    st.markdown("---")
+    st.markdown("**Hinweis:** Diese App nutzt die lebenswichtigen Regeln der SUVA für interne Schulungs- und Sicherheitszwecke. Alle Materialien sind urheberrechtlich geschützt und Eigentum der SUVA. © SUVA")
 
 elif st.session_state.current_page == 'bauav':
     st.header("⚖️ Bauarbeitenverordnung (BauAV)")
