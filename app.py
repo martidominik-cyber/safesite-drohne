@@ -907,17 +907,44 @@ Antworte NUR als JSON Liste:
             i = st.session_state.get('meta_i', '')
             s = st.session_state.get('meta_s', '')
 
-            pdf_file = create_pdf(st.session_state.confirmed, st.session_state.m_type, st.session_state.m_files, p, i, s)
+            # Berichte nur einmal erstellen und im Session State speichern
+            if 'pdf_file_path' not in st.session_state:
+                try:
+                    pdf_file = create_pdf(st.session_state.confirmed, st.session_state.m_type, st.session_state.m_files, p, i, s)
+                    st.session_state.pdf_file_path = pdf_file
+                except Exception as e:
+                    st.error(f"❌ Fehler beim Erstellen des PDF-Berichts: {str(e)}")
+                    st.stop()
+            else:
+                pdf_file = st.session_state.pdf_file_path
+            
+            if 'word_file_path' not in st.session_state and WORD_AVAILABLE:
+                try:
+                    word_file = create_word(st.session_state.confirmed, st.session_state.m_type, st.session_state.m_files, p, i, s)
+                    if word_file:
+                        st.session_state.word_file_path = word_file
+                except Exception as e:
+                    st.warning(f"⚠️ Fehler beim Erstellen des Word-Berichts: {str(e)}")
             
             c1, c2 = st.columns(2)
             with c1:
-                with open(pdf_file, "rb") as f:
-                    st.download_button("📄 PDF Bericht", f, "SSD_Bericht.pdf", mime="application/pdf", use_container_width=True)
+                try:
+                    if os.path.exists(pdf_file):
+                        with open(pdf_file, "rb") as f:
+                            st.download_button("📄 PDF Bericht", f, "SSD_Bericht.pdf", mime="application/pdf", use_container_width=True)
+                    else:
+                        st.error("❌ PDF-Datei nicht gefunden")
+                except Exception as e:
+                    st.error(f"❌ Fehler beim Laden des PDF: {str(e)}")
             with c2:
-                if WORD_AVAILABLE:
-                    word_file = create_word(st.session_state.confirmed, st.session_state.m_type, st.session_state.m_files, p, i, s)
-                    with open(word_file, "rb") as f:
-                        st.download_button("📝 Word Bericht", f, "SSD_Bericht.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
+                if WORD_AVAILABLE and 'word_file_path' in st.session_state:
+                    try:
+                        word_file = st.session_state.word_file_path
+                        if word_file and os.path.exists(word_file):
+                            with open(word_file, "rb") as f:
+                                st.download_button("📝 Word Bericht", f, "SSD_Bericht.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
+                    except Exception as e:
+                        st.warning(f"⚠️ Fehler beim Laden des Word-Dokuments: {str(e)}")
 
             st.divider()
             st.markdown("### 📧 Versenden")
@@ -935,6 +962,11 @@ Antworte NUR als JSON Liste:
             if st.button("Neuer Auftrag"):
                 st.session_state.app_step = 'screen_a'
                 st.session_state.analysis_data = []
+                # Session State für Berichte zurücksetzen
+                if 'pdf_file_path' in st.session_state:
+                    del st.session_state.pdf_file_path
+                if 'word_file_path' in st.session_state:
+                    del st.session_state.word_file_path
                 st.rerun()
 
 elif st.session_state.current_page == 'suva':
