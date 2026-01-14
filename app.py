@@ -7,7 +7,7 @@ import json
 from fpdf import FPDF
 import time
 from datetime import date
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import urllib.parse
 import uuid 
 
@@ -710,10 +710,18 @@ PRÜFUNGSPROTOKOLL - Du musst ALLE folgenden Punkte für JEDES Bild systematisch
    - Standsicherheit: Auf festem, ebenem Untergrund?
    - Anschlagsicherheit: Oberer Teil fest verbunden?
 
-6. PERSÖNLICHE SCHUTZAUSRÜSTUNG (PSA) - SUVA-Regeln:
-   - Schutzhelm: IMMER getragen? (PFLICHT auf Baustellen!)
+6. PERSÖNLICHE SCHUTZAUSRÜSTUNG (PSA) - BauAV Art. 6, 7, SUVA:
+   - Schutzhelm (BauAV Art. 6): MUSS getragen werden bei:
+     * Hochbau- und Brückenbauarbeiten bis Rohbauabschluss
+     * Arbeiten im Bereich von Kranen, Aushubgeräten, Spezialtiefbaumaschinen
+     * Graben- und Schachtbau, Baugruben
+     * Gerüstbauarbeiten
+     * Rückbau/Abbrucharbeiten
+     * Arbeiten an/in Rohrleitungen
+     * Bei Gefahr durch herunterfallende Gegenstände
+   - Schutzhelm MIT KINNBAND (BauAV Art. 6 Abs. 3): Bei Seilsicherung, Arbeiten am hängenden Seil, Helikopter-Bereich
+   - Warnkleider (BauAV Art. 7): Bei Verkehrsmitteln (Baumaschinen, Transportfahrzeuge) oder öffentlichen Verkehrswegen
    - Sicherheitsschuhe: Getragen? (PFLICHT!)
-   - Warnweste: Bei Verkehrsbereichen oder schlechter Sicht getragen?
    - Schutzbrille: Bei Staub, Spritzern, Splittern getragen?
    - Gehörschutz: Bei Lärm > 85 dB(A) getragen?
    - Schutzhandschuhe: Bei scharfen Kanten, Chemikalien getragen?
@@ -780,14 +788,19 @@ PRÜFUNGSPROTOKOLL - Du musst ALLE folgenden Punkte für JEDES Bild systematisch
     - Toter Winkel: Einweiser vorhanden?
     - Geschwindigkeit: Angemessen? (Max. 10 km/h auf Baustelle)
 
-ABSOLUT KRITISCHE REGELN:
-- DU MUSST ALLES prüfen! Auch wenn etwas "vielleicht ok aussieht", prüfe es GENAU!
-- KEINE "Ist ok" Bewertungen ohne detaillierte Prüfung aller Kriterien!
-- Jeder noch so kleine Verstoss MUSS als Mangel erkannt werden!
-- Wenn du etwas NICHT SICHER ERKENNEN kannst, ist das ein Mangel! ("Unklar, ob Seitenschutz korrekt montiert" = Mangel!)
-- Priorität: "Kritisch" = Lebensgefahr (z.B. kein Helm, Person unter Last, Absturzgefahr >2m ohne Schutz), "Hoch" = Schwere Verstösse (z.B. Gerüst ohne Seitenschutz, Graben ohne Verspriesst), "Mittel" = Normative Abweichungen (z.B. Abstand Gerüst-Fassade 35cm statt 30cm)
+ABSOLUT KRITISCHE REGELN (BauAV SR-832.311.141):
+- DU MUSST ALLES prüfen gemäss Bauarbeitenverordnung (BauAV) und SUVA-Richtlinien! Auch wenn etwas "vielleicht ok aussieht", prüfe es MILLIMETERGENAU!
+- KEINE "Ist ok" Bewertungen ohne detaillierte Prüfung ALLER Kriterien aus der BauAV!
+- Jeder noch so kleine Verstoss gegen BauAV oder SUVA-Regeln MUSS als Mangel erkannt werden!
+- Wenn du etwas NICHT SICHER ERKENNEN kannst, ist das ein Mangel! ("Unklar, ob Seitenschutz korrekt montiert gemäss BauAV Art. 22" = Mangel!)
+- Referenziere IMMER die genauen BauAV-Artikel (z.B. "BauAV Art. 6 Abs. 2", "BauAV Art. 17", "BauAV Art. 20")
+- Priorität: 
+  * "Kritisch" = Lebensgefahr (z.B. kein Helm gemäss BauAV Art. 6, Person unter Last gemäss BauAV Art. 28, Absturzgefahr >2m ohne Schutz gemäss BauAV Art. 17)
+  * "Hoch" = Schwere Verstösse (z.B. Gerüst ohne Seitenschutz gemäss BauAV Art. 22, Graben >1.5m ohne Verspriesst gemäss BauAV Art. 20)
+  * "Mittel" = Normative Abweichungen (z.B. Abstand Gerüst-Fassade 35cm statt <30cm gemäss BauAV Art. 47)
 - Analysiere JEDES Bild separat und setze den bild_index korrekt (0, 1, 2, etc. je nach Bildnummer)
-- Wenn du mehrere Mängel in einem Bild siehst, erstelle für JEDEN einen separaten Eintrag!
+- Wenn du mehrere Mängel in einem Bild siehst, erstelle für JEDEN einen separaten Eintrag mit korrekter BauAV-Referenz!
+- Beachte: Diese Verordnung (BauAV SR-832.311.141) ist bindend - alle Vorschriften MÜSSEN eingehalten werden!
 
 Antworte NUR als JSON Liste:
 [{{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "KONKRETER Mangel mit Massangabe (z.B. 'Abstand Gerüst-Fassade 50cm statt <30cm')", "verstoss": "Konkreter Verstoss gegen BauAV Art. XX oder SUVA-Regel", "massnahme": "Konkrete Massnahme (z.B. 'Gerüst auf <30cm zur Fassade verschieben, dreiteiligen Seitenschutz montieren')", "zeitstempel_sekunden": 0, "bild_index": 0}}]
