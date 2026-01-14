@@ -802,11 +802,21 @@ ABSOLUT KRITISCHE REGELN (BauAV SR-832.311.141):
 - Wenn du mehrere Mängel in einem Bild siehst, erstelle für JEDEN einen separaten Eintrag mit korrekter BauAV-Referenz!
 - Beachte: Diese Verordnung (BauAV SR-832.311.141) ist bindend - alle Vorschriften MÜSSEN eingehalten werden!
 
-Antworte NUR als JSON Liste:
-[{{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "KONKRETER Mangel mit Massangabe (z.B. 'Abstand Gerüst-Fassade 50cm statt <30cm')", "verstoss": "Konkreter Verstoss gegen BauAV Art. XX oder SUVA-Regel", "massnahme": "Konkrete Massnahme (z.B. 'Gerüst auf <30cm zur Fassade verschieben, dreiteiligen Seitenschutz montieren')", "zeitstempel_sekunden": 0, "bild_index": 0}}]
+WICHTIG FÜR DIE BERICHTGESTALTUNG:
+- Schreibe DETAILLIERTE, PROFESSIONELLE Texte wie ein erfahrener SiBe!
+- Jeder Mangel muss eine präzise Beschreibung haben mit konkreten Angaben (z.B. "Abstand Gerüst-Fassade 50cm statt <30cm", "Böschungswinkel ca. 60° statt max. 45°")
+- Beschreibe den BEFUND genau (was siehst du?), die NORM (welche Vorschrift wird verletzt?), und die MASSNAHME (was muss gemacht werden?)
+- Verwende präzise Fachbegriffe und konkrete Messwerte wo möglich
+- Strukturiere die Mängel logisch (z.B. "Absturzsicherung an der Baugrubenkante", "Fassadengerüst – Innenliegender Absturz")
+- Bei kritischen Mängeln: Beschreibe die AKUTE GEFAHR und warum SOFORTMASSNAHMEN erforderlich sind
+- Berücksichtige Witterungsverhältnisse (Schnee, Eis, Regen) wenn sichtbar
+- Beschreibe auch Situationen, die du NICHT SICHER ERKENNEN kannst (z.B. "Aufgrund der Distanz schwer erkennbar, aber...")
 
-Beispiel: Wenn du im ersten Bild (Index 0) einen Mangel findest und im zweiten Bild (Index 1) zwei Mängel, sollte die Antwort so aussehen:
-[{{"kategorie": "Gerüst", ..., "bild_index": 0}}, {{"kategorie": "Absturzkante", ..., "bild_index": 1}}, {{"kategorie": "PSA", ..., "bild_index": 1}}]
+Antworte NUR als JSON Liste:
+[{{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "DETAILLIERTE BESCHREIBUNG des Mangels mit konkreten Angaben (z.B. 'An fast allen Baugrubenrändern (besonders im Bereich des noch nicht hinterfüllten Kellers im rechten Bildteil) fehlt der vorgeschriebene Seitenschutz. Es besteht unmittelbare Lebensgefahr durch Absturz in die Grube.')", "verstoss": "GENAUER Verstoss mit Artikel-Referenz (z.B. 'Verstoss BauAV Art. 17 - Bei Absturzhöhen über 2m ist ein dreiteiliger Seitenschutz zwingend')", "massnahme": "KONKRETE, AUSFÜHRLICHE Massnahme (z.B. 'Sofortige Absperrung (mind. 1.5m - 2m Abstand zur Kante) oder Montage eines festen Geländers. Geologen/Geotechniker hinzuziehen. Böschungswinkel kontrollieren.')", "zeitstempel_sekunden": 0, "bild_index": 0}}]
+
+Beispiel für eine professionelle Mangelbeschreibung:
+{{"kategorie": "Baugruben und Erdarbeiten", "prioritaet": "Kritisch", "mangel": "An fast allen Baugrubenrändern (besonders im Bereich des noch nicht hinterfüllten Kellers im rechten Bildteil) fehlt der vorgeschriebene Seitenschutz. Es besteht unmittelbare Lebensgefahr durch Absturz in die Grube. Die Böschungen sind steil und mit Schnee bedeckt. Durch Schmelzwasser besteht akute Rutschgefahr.", "verstoss": "Verstoss BauAV Art. 17 - Bei Absturzhöhen über 2m ist ein dreiteiliger Seitenschutz zwingend. Verstoss BauAV Art. 59 - Böschungswinkel zu steil.", "massnahme": "Sofortige Absperrung (mind. 1.5m - 2m Abstand zur Kante) oder Montage eines festen Geländers. Geologen/Geotechniker hinzuziehen. Böschungswinkel kontrollieren. Bei aufgeweichtem Boden Böschung abflachen oder verbauen.", "zeitstempel_sekunden": 0, "bild_index": 0}}
 """
                     
                     # --- HIER IST DIE SCHLAUE SCHLEIFE ---
