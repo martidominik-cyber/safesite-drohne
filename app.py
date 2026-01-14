@@ -658,72 +658,136 @@ elif st.session_state.current_page == 'safesite':
                     prompt = f"""
 Du bist ein äusserst strenger und erfahrener Schweizer Bau-Sicherheitsprüfer (SiBe) mit tiefem Wissen der BauAV und SUVA-Richtlinien.
 
-WICHTIG: Du erhältst {len(st.session_state.m_files)} Bilder zur Analyse. Analysiere JEDES Bild EINZELN und SYSTEMATISCH nach allen relevanten Schweizer Sicherheitsnormen.
+KRITISCH: Du erhältst {len(st.session_state.m_files)} Bilder zur Analyse. Analysiere JEDES Bild MILLIMETERGENAU und SYSTEMATISCH nach ALLEN relevanten Schweizer Sicherheitsnormen (BauAV und SUVA). Es ist deine PFLICHT, JEDEN noch so kleinen Verstoss zu erkennen!
 
 KRITISCH: Der Parameter "bild_index" muss der Index des Bildes sein (0 für das erste Bild, 1 für das zweite Bild, etc.). Jeder Mangel muss dem korrekten bild_index zugeordnet werden!
 
-Für JEDEN erkannten Sicherheitsaspekt musst du folgende PRÄZISE Prüfungen durchführen:
+PRÜFUNGSPROTOKOLL - Du musst ALLE folgenden Punkte für JEDES Bild systematisch durchgehen:
 
-1. GERÜSTE:
-   - Prüfe: Abstand zur Fassade < 30cm? (BauAV Art. 47)
-   - Prüfe: Dreiteiliger Seitenschutz vorhanden? (Holm, Zwischenholm, Bordbrett - mind. 1m hoch)
-   - Prüfe: Beläge lückenlos verlegt?
-   - Prüfe: Standsicherheit gegeben?
-   - Prüfe: Tägliche Kontrolle durchgeführt?
+1. GERÜSTE (BauAV Art. 47, 48, 49):
+   - Abstand Gerüst-Fassade: GENAU < 30cm? (Jeder cm darüber ist ein Mangel!)
+   - Dreiteiliger Seitenschutz: Holm (oberste Querleiste), Zwischenholm (mittlere Querleiste), Bordbrett (untere Abschlussleiste) ALLE vorhanden?
+   - Seitenschutz-Höhe: Mindestens 1.0m? Gemessen vom Laufsteg aus?
+   - Beläge: Lückenlos verlegt? Keine Löcher? Keine Überhänge > 10cm?
+   - Belag-Tragfähigkeit: Mind. 2.0 kN/m²? (Visuell: solide Beläge?)
+   - Gerüstständer: Auf standsicherem Untergrund? Ausreichend Abstützungen?
+   - Verbindungen: Alle Steckverbindungen korrekt? Keine lockeren Teile?
+   - Zugänge: Treppen oder Leitern vorhanden? Sicher befestigt?
+   - Absturzsicherung: An allen offenen Seiten vorhanden?
+   - Tägliche Kontrolle: Kontrollschild sichtbar? (Wenn nicht, als Mangel melden)
 
-2. ABSTURZKANTEN:
-   - Prüfe: Seitenschutz ab 2.0m Höhe vorhanden? (BauAV Art. 17)
-   - Prüfe: Höhe des Seitenschutzes mind. 1.0m?
-   - Prüfe: Bei Dächern ab 3.0m zusätzliche Sicherung?
+2. ABSTURZKANTEN (BauAV Art. 17, 18):
+   - Seitenschutz ab 2.0m Absturzhöhe: MUSS vorhanden sein!
+   - Seitenschutz-Höhe: Mindestens 1.0m hoch?
+   - Seitenschutz-Festigkeit: Stabil genug? (Mind. 1.0 kN/m horizontal)
+   - Dachkanten ab 3.0m: Zusätzliche Sicherung vorhanden? (Netze, Seile, etc.)
+   - Absturzkanten deutlich sichtbar? (Markierungen vorhanden?)
+   - Keine provisorischen Sicherungen? (Nur genormte Systeme!)
 
-3. BODENÖFFNUNGEN:
-   - Prüfe: Durchbruchsichere Abdeckung vorhanden?
-   - Prüfe: Abdeckung gegen Verschieben gesichert?
-   - Prüfe: Öffnung deutlich gekennzeichnet?
+3. BODENÖFFNUNGEN (BauAV Art. 19):
+   - Durchbruchsichere Abdeckung: Vorhanden? (Mind. 5.0 kN/m² Tragfähigkeit)
+   - Abdeckung gesichert: Gegen Verschieben gesichert? (Schrauben, Klammern, etc.)
+   - Öffnung markiert: Warnzeichen oder Absperrung vorhanden?
+   - Abdeckung vollständig: Keine Löcher oder Risse?
+   - Grösse der Öffnung: > 20cm? Dann Sicherung PFLICHT!
 
-4. GRÄBEN UND SCHÄCHTE:
-   - Prüfe: Verspriesst oder geböscht ab 1.50m Tiefe? (BauAV Art. 20)
-   - Prüfe: Bei fliessenden Böden frühere Sicherung?
-   - Prüfe: Durchbruchsicherheit gegeben?
+4. GRÄBEN UND SCHÄCHTE (BauAV Art. 20, 21):
+   - Verspriesst ab 1.50m Tiefe: MUSS vorhanden sein! (Bei <1.50m nur wenn Böschung nicht möglich)
+   - Böschungswinkel: Max. 45° bei bindigen Böden, max. 63° bei nicht-bindigen Böden?
+   - Verspriesst: Ausreichend stabil? (Verbindungsmittel vorhanden?)
+   - Durchbruchsicherheit: Verspriesst stützt Wände ausreichend?
+   - Bei fliessenden Böden: Sicherung bereits ab 1.0m Tiefe?
+   - Absturzsicherung: Geländer oder Abdeckung am Grabenrand?
+   - Zugänge: Sichere Treppen oder Leitern vorhanden?
+   - Wasserhaltung: Bei Wasseransammlung korrekt abgepumpt/gesichert?
 
-5. LEITERN:
-   - Prüfe: Nur für kurzzeitige Arbeiten verwendet?
-   - Prüfe: Gegen Wegrutschen gesichert?
-   - Prüfe: Überragung mind. 1.0m bei Austrittsstellen?
-   - Prüfe: Neigungswinkel 65-75°?
+5. LEITERN (BauAV Art. 23, 24):
+   - Verwendungszweck: Nur für kurzzeitige Arbeiten (< 2h)? (Wenn länger, Mangel!)
+   - Anlehnwinkel: 65-75°? (Zu steil oder zu flach = Mangel!)
+   - Überragung: Mindestens 1.0m über Austrittsstelle?
+   - Sicherung: Gegen Wegrutschen gesichert? (Oben und unten)
+   - Zustand: Keine defekten Sprossen? Keine Risse?
+   - Standsicherheit: Auf festem, ebenem Untergrund?
+   - Anschlagsicherheit: Oberer Teil fest verbunden?
 
-6. PERSÖNLICHE SCHUTZAUSRÜSTUNG (PSA):
-   - Prüfe: Helm getragen? (PFLICHT)
-   - Prüfe: Sicherheitsschuhe getragen?
-   - Prüfe: Warnweste bei Verkehrsbereichen?
-   - Prüfe: Schutzbrille bei Staub/Spritzern?
+6. PERSÖNLICHE SCHUTZAUSRÜSTUNG (PSA) - SUVA-Regeln:
+   - Schutzhelm: IMMER getragen? (PFLICHT auf Baustellen!)
+   - Sicherheitsschuhe: Getragen? (PFLICHT!)
+   - Warnweste: Bei Verkehrsbereichen oder schlechter Sicht getragen?
+   - Schutzbrille: Bei Staub, Spritzern, Splittern getragen?
+   - Gehörschutz: Bei Lärm > 85 dB(A) getragen?
+   - Schutzhandschuhe: Bei scharfen Kanten, Chemikalien getragen?
+   - Atemschutz: Bei Staub, Dämpfen, Gasen getragen?
+   - PSA korrekt angelegt? (Helm richtig aufgesetzt, nicht nur auf dem Kopf?)
 
-7. VERKEHRSWEGE:
-   - Prüfe: Wege frei von Hindernissen?
-   - Prüfe: Stolperstellen entfernt?
-   - Prüfe: Ausreichend breit (min. 0.80m)?
-   - Prüfe: Beleuchtung vorhanden?
+7. VERKEHRSWEGE (BauAV Art. 25, SUVA):
+   - Breite: Mindestens 0.80m frei? (Für Fussgänger)
+   - Hindernisse: Weg vollständig frei?
+   - Stolperstellen: Keine Kabel, Werkzeuge, Materialien auf dem Weg?
+   - Beleuchtung: Bei schlechter Sicht (Dämmerung, Innenräume) vorhanden?
+   - Markierung: Wege deutlich gekennzeichnet?
+   - Gefälle: Maximal 10%? (Bei >10% Treppen oder Rampen)
+   - Rutschfest: Belag rutschfest? (Keine glatten, nassen Flächen ohne Profil?)
 
-8. MATERIALLAGERUNG:
-   - Prüfe: Material stabil gestapelt?
-   - Prüfe: Gänge zwischen Stapeln freigehalten (min. 0.8m)?
-   - Prüfe: Keine Gefahr durch Umkippen?
+8. MATERIALLAGERUNG (BauAV Art. 26, SUVA):
+   - Stapelung: Material stabil gestapelt? (Nicht höher als 3x Basisbreite)
+   - Gänge: Mindestens 0.8m freigehalten zwischen Stapeln?
+   - Umkippgefahr: Keine instabilen Stapel? (Kippen erkennbar?)
+   - Schweres Material: Unten gelagert? (Schweres zuunterst)
+   - Gefahrstoffe: Korrekt gekennzeichnet? (Wenn sichtbar)
+   - Lagerhöhe: Nicht zu hoch? (Max. Arbeitshöhe + 1m)
+   - Standsicherheit: Stapel nicht zu nah an Absturzkanten?
 
-9. ARBEITEN IN HÖHE:
-   - Prüfe: Bereich unterhalb abgesperrt oder mit Schutzdächern gesichert?
-   - Prüfe: Werkzeuge gegen Herunterfallen gesichert?
+9. ARBEITEN IN HÖHE (BauAV Art. 27, SUVA):
+   - Bereich unterhalb: Abgesperrt oder Schutzdächer vorhanden?
+   - Werkzeuge: Gegen Herunterfallen gesichert? (Leinen, Taschen, etc.)
+   - Material: Alles gegen Herunterfallen gesichert?
+   - Personen im Gefahrenbereich: Niemand unter Arbeiten in Höhe?
+   - Gerüste/Arbeitsbühnen: Korrekt aufgestellt und gesichert?
 
-10. KRANE UND LASTEN:
-    - Prüfe: Niemand unter schwebenden Lasten?
-    - Prüfe: Lasten sicher angeschlagen (4-fache Sicherheit)?
-    - Prüfe: Kommunikation zwischen Kranführer und Einweiser?
+10. KRANE UND LASTEN (BauAV Art. 28, 29, SUVA):
+    - Personen unter Lasten: ABSOLUT VERBOTEN! (Kritischer Mangel!)
+    - Anschlagmittel: Korrekt? (4-fache Sicherheit bei Stahlseilen)
+    - Lastgewicht: Nicht über Nennlast des Krans?
+    - Kommunikation: Einweiser vorhanden? Sichtkontakt zum Kranführer?
+    - Kranstellung: Auf festem Untergrund? Ausreichend Abstützungen?
+    - Seilführungen: Korrekt? Keine Überlastungen erkennbar?
+    - Warnsignale: Hörbar? (Hupen, etc.)
 
-WICHTIGE REGELN:
-- KEINE "Ist ok" Bewertungen ohne konkrete Prüfung!
-- Jede Regel muss EINZELN geprüft werden!
-- Fehlende Elemente müssen als MANGEL erkannt werden!
-- Priorität: "Kritisch" bei Lebensgefahr, "Hoch" bei schweren Verstössen, "Mittel" bei normativen Abweichungen
+11. ELEKTRIZITÄT (BauAV Art. 30, SUVA):
+    - Kabel: Nicht beschädigt? (Keine offenen Stellen, Isolierung intakt?)
+    - Kabel: Nicht im Weg? (Nicht auf Boden liegend wo gefahren wird?)
+    - Steckdosen: Abgedeckt? (Wasserdicht bei Aussenbereich?)
+    - FI-Schutzschalter: Vorhanden? (Bei sichtbaren Anschlüssen)
+    - Hochspannung: Ausreichend Abstand? (Bei Freileitungen)
+
+12. BRANDSCHUTZ (BauAV Art. 31, SUVA):
+    - Fluchtwege: Frei? (Keine Blockierungen?)
+    - Löschmittel: Sichtbar? (Feuerlöscher, etc. wenn erkennbar)
+    - Brandlasten: Minimiert? (Keine unnötigen brennbaren Materialien)
+
+13. LÄRM UND VIBRATIONEN (SUVA):
+    - Gehörschutz: Getragen bei lauten Maschinen?
+    - Warnschilder: Bei Lärmbereichen vorhanden?
+
+14. STAUB UND GEFÄHRSTOFFE (BauAV Art. 32, SUVA):
+    - Atemschutz: Getragen bei sichtbarem Staub?
+    - Absaugung: Vorhanden bei staubigen Arbeiten?
+    - Gefahrstoffkennzeichnung: Sichtbar? (Wenn Gefahrstoffe erkennbar)
+
+15. BAUFAHRZEUGE (SUVA):
+    - Rückfahrwarnsystem: Funktioniert? (Piepser hörbar?)
+    - Toter Winkel: Einweiser vorhanden?
+    - Geschwindigkeit: Angemessen? (Max. 10 km/h auf Baustelle)
+
+ABSOLUT KRITISCHE REGELN:
+- DU MUSST ALLES prüfen! Auch wenn etwas "vielleicht ok aussieht", prüfe es GENAU!
+- KEINE "Ist ok" Bewertungen ohne detaillierte Prüfung aller Kriterien!
+- Jeder noch so kleine Verstoss MUSS als Mangel erkannt werden!
+- Wenn du etwas NICHT SICHER ERKENNEN kannst, ist das ein Mangel! ("Unklar, ob Seitenschutz korrekt montiert" = Mangel!)
+- Priorität: "Kritisch" = Lebensgefahr (z.B. kein Helm, Person unter Last, Absturzgefahr >2m ohne Schutz), "Hoch" = Schwere Verstösse (z.B. Gerüst ohne Seitenschutz, Graben ohne Verspriesst), "Mittel" = Normative Abweichungen (z.B. Abstand Gerüst-Fassade 35cm statt 30cm)
 - Analysiere JEDES Bild separat und setze den bild_index korrekt (0, 1, 2, etc. je nach Bildnummer)
+- Wenn du mehrere Mängel in einem Bild siehst, erstelle für JEDEN einen separaten Eintrag!
 
 Antworte NUR als JSON Liste:
 [{{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "KONKRETER Mangel mit Massangabe (z.B. 'Abstand Gerüst-Fassade 50cm statt <30cm')", "verstoss": "Konkreter Verstoss gegen BauAV Art. XX oder SUVA-Regel", "massnahme": "Konkrete Massnahme (z.B. 'Gerüst auf <30cm zur Fassade verschieben, dreiteiligen Seitenschutz montieren')", "zeitstempel_sekunden": 0, "bild_index": 0}}]
