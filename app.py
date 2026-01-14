@@ -655,10 +655,12 @@ elif st.session_state.current_page == 'safesite':
                     genai.configure(api_key=API_KEY)
                     
                     # Detaillierter Prompt mit spezifischen Schweizer Normen
-                    prompt = """
+                    prompt = f"""
 Du bist ein äusserst strenger und erfahrener Schweizer Bau-Sicherheitsprüfer (SiBe) mit tiefem Wissen der BauAV und SUVA-Richtlinien.
 
-WICHTIG: Analysiere diese Aufnahmen SYSTEMATISCH und KRITISCH nach allen relevanten Schweizer Sicherheitsnormen.
+WICHTIG: Du erhältst {len(st.session_state.m_files)} Bilder zur Analyse. Analysiere JEDES Bild EINZELN und SYSTEMATISCH nach allen relevanten Schweizer Sicherheitsnormen.
+
+KRITISCH: Der Parameter "bild_index" muss der Index des Bildes sein (0 für das erste Bild, 1 für das zweite Bild, etc.). Jeder Mangel muss dem korrekten bild_index zugeordnet werden!
 
 Für JEDEN erkannten Sicherheitsaspekt musst du folgende PRÄZISE Prüfungen durchführen:
 
@@ -721,9 +723,13 @@ WICHTIGE REGELN:
 - Jede Regel muss EINZELN geprüft werden!
 - Fehlende Elemente müssen als MANGEL erkannt werden!
 - Priorität: "Kritisch" bei Lebensgefahr, "Hoch" bei schweren Verstössen, "Mittel" bei normativen Abweichungen
+- Analysiere JEDES Bild separat und setze den bild_index korrekt (0, 1, 2, etc. je nach Bildnummer)
 
 Antworte NUR als JSON Liste:
-[{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "KONKRETER Mangel mit Massangabe (z.B. 'Abstand Gerüst-Fassade 50cm statt <30cm')", "verstoss": "Konkreter Verstoss gegen BauAV Art. XX oder SUVA-Regel", "massnahme": "Konkrete Massnahme (z.B. 'Gerüst auf <30cm zur Fassade verschieben, dreiteiligen Seitenschutz montieren')", "zeitstempel_sekunden": 0, "bild_index": 0}]
+[{{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "KONKRETER Mangel mit Massangabe (z.B. 'Abstand Gerüst-Fassade 50cm statt <30cm')", "verstoss": "Konkreter Verstoss gegen BauAV Art. XX oder SUVA-Regel", "massnahme": "Konkrete Massnahme (z.B. 'Gerüst auf <30cm zur Fassade verschieben, dreiteiligen Seitenschutz montieren')", "zeitstempel_sekunden": 0, "bild_index": 0}}]
+
+Beispiel: Wenn du im ersten Bild (Index 0) einen Mangel findest und im zweiten Bild (Index 1) zwei Mängel, sollte die Antwort so aussehen:
+[{{"kategorie": "Gerüst", ..., "bild_index": 0}}, {{"kategorie": "Absturzkante", ..., "bild_index": 1}}, {{"kategorie": "PSA", ..., "bild_index": 1}}]
 """
                     
                     # --- HIER IST DIE SCHLAUE SCHLEIFE ---
