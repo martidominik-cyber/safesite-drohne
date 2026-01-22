@@ -405,8 +405,8 @@ with st.sidebar:
         st.image(LOGO_FILE, use_container_width=True)
         
     st.title("Menü")
-    page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV"]
-    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'kunden':4}
+    page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV", "🚨 Notfallmanagement"]
+    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'notfall':4, 'kunden':5}
     
     # Admin-Menüpunkt hinzufügen, wenn Admin eingeloggt
     if is_admin():
@@ -425,6 +425,7 @@ with st.sidebar:
     elif page == "🔍 SafeSite-Check": st.session_state.current_page = 'safesite'
     elif page == "📋 SUVA Regeln": st.session_state.current_page = 'suva'
     elif page == "⚖️ BauAV": st.session_state.current_page = 'bauav'
+    elif page == "🚨 Notfallmanagement": st.session_state.current_page = 'notfall'
     elif page == "👥 Kundenverwaltung": st.session_state.current_page = 'kunden'
     
     st.divider()
@@ -507,6 +508,10 @@ if st.session_state.current_page == 'home':
         
         if st.button("📋 SUVA Regeln", use_container_width=True):
             st.session_state.current_page = 'suva'
+            st.rerun()
+        
+        if st.button("🚨 Notfallmanagement", use_container_width=True):
+            st.session_state.current_page = 'notfall'
             st.rerun()
     
     with col2:
@@ -1205,6 +1210,86 @@ elif st.session_state.current_page == 'bauav':
     
     if search_query and displayed_count == 0:
         st.info("💡 **Tipp:** Suchen Sie nach Begriffen wie 'Gerüst', 'Absturz', 'Leiter', 'Gräben', 'PSA', etc.")
+
+elif st.session_state.current_page == 'notfall':
+    st.header("🚨 Notfallmanagement (SOS)")
+    st.markdown("**Wenn etwas passiert, zählt jede Sekunde.**")
+    st.markdown("---")
+    
+    st.subheader("📞 Notfallnummern")
+    st.markdown("**Wählen Sie die richtige Nummer für Ihren Notfall:**")
+    
+    # Notfallnummern in Spalten anzeigen
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### 🚑 144 - Sanitätsnotruf")
+        st.markdown("**Wichtigste Nummer. Bei allen medizinischen Notfällen:**")
+        st.markdown("- Unfall")
+        st.markdown("- Herzinfarkt")
+        st.markdown("- Sturz")
+        st.markdown(f"[📞 144 anrufen](tel:144)", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        st.markdown("### 🚁 1414 - Rega (Luftrettung)")
+        st.markdown("**Essenziell in der Schweiz. Bei:**")
+        st.markdown("- Schwer zugänglichem Gelände")
+        st.markdown("- Kran-Unfällen")
+        st.markdown("- Wenn Bodenambulanzen zu lange brauchen")
+        st.markdown("ℹ️ *Hinweis: Im Wallis wird über die 144 disponiert, aber die 1414 ist national bekannt.*")
+        st.markdown(f"[📞 1414 anrufen](tel:1414)", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        st.markdown("### 🚒 118 - Feuerwehr")
+        st.markdown("**Nicht nur bei Feuer! Auch bei:**")
+        st.markdown("- Personenrettung (aus Tiefen/Höhen)")
+        st.markdown("- Chemieunfällen (Öl/Gefahrgut)")
+        st.markdown("- Verschüttungen")
+        st.markdown(f"[📞 118 anrufen](tel:118)", unsafe_allow_html=True)
+        st.markdown("---")
+    
+    with col2:
+        st.markdown("### ☠️ 145 - Tox Info Suisse")
+        st.markdown("**Bei Vergiftungen oder Unfällen mit Chemikalien/Baustoffen:**")
+        st.markdown("- Versch lucken")
+        st.markdown("- Einatmen")
+        st.markdown("- Augenkontakt")
+        st.markdown(f"[📞 145 anrufen](tel:145)", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        st.markdown("### 👮 117 - Polizei")
+        st.markdown("**Bei:**")
+        st.markdown("- Verkehrsunfällen vor der Baustelle")
+        st.markdown("- Einbruch")
+        st.markdown("- Gewaltandrohung")
+        st.markdown(f"[📞 117 anrufen](tel:117)", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        st.markdown("### 🌍 112 - Euro-Notruf")
+        st.markdown("**Funktioniert oft auch dann, wenn das eigene Handynetz kein Signal hat**")
+        st.markdown("*(Roaming über Fremdnetze)*")
+        st.markdown(f"[📞 112 anrufen](tel:112)", unsafe_allow_html=True)
+        st.markdown("---")
+    
+    st.markdown("---")
+    st.subheader("❓ Die \"W-Fragen\"-Hilfe")
+    st.info("💡 **Viele Leute stehen unter Schock. Ein kurzes Skript auf dem Bildschirm hilft:**")
+    
+    # W-Fragen in einem schönen Container
+    st.markdown("""
+    <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #ff4444;">
+        <h4 style="color: #ff4444; margin-top: 0;">Beantworten Sie diese Fragen am Telefon:</h4>
+        <ul style="font-size: 16px; line-height: 1.8;">
+            <li><strong>Wer ruft an?</strong><br>Ihr Name und Ihre Funktion</li>
+            <li><strong>Wo ist es passiert?</strong><br>Genauer Standort, Adresse, Baustelle</li>
+            <li><strong>Was ist passiert?</strong><br>Art des Unfalls, Verletzungen</li>
+            <li><strong>Wie viele Verletzte?</strong><br>Anzahl der betroffenen Personen</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.warning("⚠️ **Wichtig:** Bleiben Sie ruhig, sprechen Sie langsam und deutlich. Legen Sie nicht auf, bis die Rettungsleitstelle alle Informationen hat.")
 
 elif st.session_state.current_page == 'kunden':
     if not is_admin():
