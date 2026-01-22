@@ -43,6 +43,7 @@ st.markdown(f"""
 # DATENBANK
 USER_DB_FILE = "users.json"
 CUSTOMERS_DB_FILE = "customers.json"
+GEFAHRSOFF_DB_FILE = "gefahrstoffe.json"
 
 def load_users():
     if not os.path.exists(USER_DB_FILE):
@@ -59,6 +60,14 @@ def load_customers():
 
 def save_customers(customers):
     with open(CUSTOMERS_DB_FILE, "w") as f: json.dump(customers, f, indent=2)
+
+def load_gefahrstoffe():
+    if not os.path.exists(GEFAHRSOFF_DB_FILE):
+        with open(GEFAHRSOFF_DB_FILE, "w") as f: json.dump({}, f)
+    with open(GEFAHRSOFF_DB_FILE, "r") as f: return json.load(f)
+
+def save_gefahrstoffe(gefahrstoffe):
+    with open(GEFAHRSOFF_DB_FILE, "w") as f: json.dump(gefahrstoffe, f, indent=2)
 
 def is_admin():
     return st.session_state.logged_in and st.session_state.username == "admin"
@@ -405,8 +414,8 @@ with st.sidebar:
         st.image(LOGO_FILE, use_container_width=True)
         
     st.title("Menü")
-    page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV", "🚨 Notfallmanagement"]
-    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'notfall':4, 'kunden':5}
+    page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV", "🚨 Notfallmanagement", "🧪 Gefahrstoffkataster"]
+    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'notfall':4, 'gefahrstoff':5, 'kunden':6}
     
     # Admin-Menüpunkt hinzufügen, wenn Admin eingeloggt
     if is_admin():
@@ -426,6 +435,7 @@ with st.sidebar:
     elif page == "📋 SUVA Regeln": st.session_state.current_page = 'suva'
     elif page == "⚖️ BauAV": st.session_state.current_page = 'bauav'
     elif page == "🚨 Notfallmanagement": st.session_state.current_page = 'notfall'
+    elif page == "🧪 Gefahrstoffkataster": st.session_state.current_page = 'gefahrstoff'
     elif page == "👥 Kundenverwaltung": st.session_state.current_page = 'kunden'
     
     st.divider()
@@ -512,6 +522,10 @@ if st.session_state.current_page == 'home':
         
         if st.button("🚨 Notfallmanagement", use_container_width=True):
             st.session_state.current_page = 'notfall'
+            st.rerun()
+        
+        if st.button("🧪 Gefahrstoffkataster", use_container_width=True):
+            st.session_state.current_page = 'gefahrstoff'
             st.rerun()
     
     with col2:
@@ -1302,6 +1316,108 @@ elif st.session_state.current_page == 'notfall':
     
     st.markdown("---")
     st.warning("⚠️ **Wichtig:** Bleiben Sie ruhig, sprechen Sie langsam und deutlich. Legen Sie nicht auf, bis die Rettungsleitstelle alle Informationen hat.")
+
+elif st.session_state.current_page == 'gefahrstoff':
+    st.header("🧪 Gefahrstoffkataster")
+    st.markdown("**Digitaler Zugriff auf Sicherheitsdatenblätter für verwendete Chemikalien oder Baustoffe.**")
+    st.markdown("---")
+    
+    gefahrstoffe = load_gefahrstoffe()
+    
+    # Suchfunktion
+    search_query = st.text_input("🔍 Suche nach Gefahrstoff", placeholder="z.B. Beton, Lösungsmittel, Kleber...", help="Suchen Sie nach Name, Kategorie oder CAS-Nummer")
+    st.markdown("---")
+    
+    # Tab-Layout
+    tab1, tab2 = st.tabs(["📋 Gefahrstoffliste", "➕ Neuen Gefahrstoff hinzufügen"])
+    
+    with tab1:
+        st.subheader("Alle Gefahrstoffe")
+        
+        if not gefahrstoffe:
+            st.info("Noch keine Gefahrstoffe vorhanden. Fügen Sie einen neuen Gefahrstoff hinzu.")
+        else:
+            displayed_count = 0
+            for gefahrstoff_id, gefahrstoff_data in gefahrstoffe.items():
+                # Suchfilter anwenden
+                if search_query:
+                    search_lower = search_query.lower()
+                    name = gefahrstoff_data.get('name', '').lower()
+                    kategorie = gefahrstoff_data.get('kategorie', '').lower()
+                    cas = gefahrstoff_data.get('cas_nummer', '').lower()
+                    beschreibung = gefahrstoff_data.get('beschreibung', '').lower()
+                    
+                    if (search_lower not in name and 
+                        search_lower not in kategorie and 
+                        search_lower not in cas and 
+                        search_lower not in beschreibung):
+                        continue
+                
+                displayed_count += 1
+                with st.container(border=True):
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        st.markdown(f"### {gefahrstoff_data.get('name', 'Unbekannt')}")
+                        if gefahrstoff_data.get('kategorie'):
+                            st.markdown(f"**Kategorie:** {gefahrstoff_data.get('kategorie')}")
+                        if gefahrstoff_data.get('cas_nummer'):
+                            st.markdown(f"**CAS-Nummer:** {gefahrstoff_data.get('cas_nummer')}")
+                        if gefahrstoff_data.get('beschreibung'):
+                            st.write(gefahrstoff_data.get('beschreibung'))
+                        
+                        # Sicherheitsdatenblatt-Link oder Upload
+                        sdb_link = gefahrstoff_data.get('sdb_link', '')
+                        sdb_datei = gefahrstoff_data.get('sdb_datei', '')
+                        if sdb_link:
+                            st.markdown(f"📄 [Sicherheitsdatenblatt öffnen]({sdb_link})", unsafe_allow_html=True)
+                        elif sdb_datei:
+                            st.markdown(f"📄 Sicherheitsdatenblatt: {sdb_datei}")
+                        else:
+                            st.caption("⚠️ Kein Sicherheitsdatenblatt hinterlegt")
+                    
+                    with col2:
+                        if is_admin():
+                            if st.button("🗑️ Löschen", key=f"del_{gefahrstoff_id}", use_container_width=True):
+                                del gefahrstoffe[gefahrstoff_id]
+                                save_gefahrstoffe(gefahrstoffe)
+                                st.success("✅ Gefahrstoff gelöscht!")
+                                st.rerun()
+            
+            if search_query and displayed_count == 0:
+                st.info("💡 **Tipp:** Keine Gefahrstoffe gefunden. Versuchen Sie eine andere Suchanfrage.")
+    
+    with tab2:
+        if not is_admin():
+            st.warning("⚠️ Nur Administratoren können neue Gefahrstoffe hinzufügen.")
+        else:
+            st.subheader("Neuen Gefahrstoff hinzufügen")
+            
+            with st.form("neuer_gefahrstoff", clear_on_submit=True):
+                name = st.text_input("Name des Gefahrstoffs *", help="z.B. Beton, Lösungsmittel, Kleber")
+                kategorie = st.selectbox("Kategorie", ["Chemikalie", "Baustoff", "Klebstoff", "Lack/Farbe", "Reinigungsmittel", "Sonstiges"])
+                cas_nummer = st.text_input("CAS-Nummer (optional)", help="Eindeutige Identifikationsnummer")
+                beschreibung = st.text_area("Beschreibung (optional)", help="Kurze Beschreibung des Gefahrstoffs")
+                sdb_link = st.text_input("Link zum Sicherheitsdatenblatt (optional)", help="URL zum PDF oder Online-SDB")
+                
+                submitted = st.form_submit_button("Gefahrstoff hinzufügen", use_container_width=True, type="primary")
+                
+                if submitted:
+                    if not name:
+                        st.error("❌ Bitte geben Sie einen Namen ein!")
+                    else:
+                        new_id = str(uuid.uuid4())
+                        gefahrstoffe[new_id] = {
+                            "name": name,
+                            "kategorie": kategorie,
+                            "cas_nummer": cas_nummer if cas_nummer else "",
+                            "beschreibung": beschreibung if beschreibung else "",
+                            "sdb_link": sdb_link if sdb_link else "",
+                            "sdb_datei": "",
+                            "erstellt_am": date.today().strftime('%d.%m.%Y')
+                        }
+                        save_gefahrstoffe(gefahrstoffe)
+                        st.success(f"✅ Gefahrstoff '{name}' erfolgreich hinzugefügt!")
+                        st.rerun()
 
 elif st.session_state.current_page == 'kunden':
     if not is_admin():
