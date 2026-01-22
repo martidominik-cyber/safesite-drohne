@@ -647,37 +647,53 @@ if st.session_state.current_page == 'home':
     
     st.markdown("---")
     
-    # Menüpunkte als Buttons
-    col1, col2 = st.columns(2)
+    # Menüpunkte als Buttons - gleichmäßig verteilt
+    st.markdown("### Navigation")
+    st.markdown("")
+    
+    # Erste Zeile: 3 Spalten
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         if st.button("🔍 SafeSite-Check", use_container_width=True, type="primary"):
             st.session_state.current_page = 'safesite'
             st.rerun()
-        
+    
+    with col2:
         if st.button("📋 SUVA Regeln", use_container_width=True):
             st.session_state.current_page = 'suva'
             st.rerun()
-        
+    
+    with col3:
+        if st.button("⚖️ BauAV", use_container_width=True):
+            st.session_state.current_page = 'bauav'
+            st.rerun()
+    
+    st.markdown("")
+    
+    # Zweite Zeile: 3 Spalten
+    col4, col5, col6 = st.columns(3)
+    
+    with col4:
         if st.button("🚨 Notfallmanagement", use_container_width=True):
             st.session_state.current_page = 'notfall'
             st.rerun()
-        
+    
+    with col5:
         if st.button("🧪 Gefahrstoffkataster", use_container_width=True):
             st.session_state.current_page = 'gefahrstoff'
             st.rerun()
-        
+    
+    with col6:
         if st.button("🌤️ Wetter-Warnungen", use_container_width=True):
             st.session_state.current_page = 'wetter'
             st.rerun()
     
-    with col2:
-        if st.button("⚖️ BauAV", use_container_width=True):
-            st.session_state.current_page = 'bauav'
-            st.rerun()
-        
-        # Kundenverwaltung nur für Admin
-        if is_admin():
+    # Kundenverwaltung nur für Admin - eigene Zeile
+    if is_admin():
+        st.markdown("")
+        col_admin = st.columns([1, 1, 1])
+        with col_admin[1]:
             if st.button("👥 Kundenverwaltung", use_container_width=True):
                 st.session_state.current_page = 'kunden'
                 st.rerun()
