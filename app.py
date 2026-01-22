@@ -64,7 +64,145 @@ def save_customers(customers):
 def load_gefahrstoffe():
     if not os.path.exists(GEFAHRSOFF_DB_FILE):
         with open(GEFAHRSOFF_DB_FILE, "w") as f: json.dump({}, f)
-    with open(GEFAHRSOFF_DB_FILE, "r") as f: return json.load(f)
+    with open(GEFAHRSOFF_DB_FILE, "r") as f: 
+        gefahrstoffe = json.load(f)
+        # Beim ersten Laden: Standard-Gefahrstoffe hinzufügen, wenn Liste leer ist
+        if not gefahrstoffe:
+            gefahrstoffe = init_standard_gefahrstoffe()
+            save_gefahrstoffe(gefahrstoffe)
+        return gefahrstoffe
+
+def init_standard_gefahrstoffe():
+    """Initialisiert die Standard-Gefahrstoffe basierend auf dem Muster-Kataster"""
+    standard_gefahrstoffe = {}
+    
+    # 1. Zementhaltige Produkte
+    standard_gefahrstoffe[str(uuid.uuid4())] = {
+        "name": "Zementhaltige Produkte",
+        "handelsbezeichnung": "Beton, Mörtel, Fugenmassen",
+        "hersteller": "Verschiedene Hersteller",
+        "kategorie": "Zementhaltige Produkte",
+        "cas_nummer": "",
+        "lagerort": "Baustelle / Lager",
+        "menge": "Variabel",
+        "sdb_datum": "",
+        "ghs_symbole": "GHS05, GHS07",
+        "gefahrenbeschreibung": "Ätzend / Reizend. Verursacht schwere Augenschäden. Hautreizungen (Maurerkrätze). Staub reizt Atemwege.",
+        "schutzmassnahmen": "Handschuhe (Nitril/Butyl), Schutzbrille, lange Kleidung. Bei Staubentwicklung: Maske FFP2.",
+        "verwendung": "Bauarbeiten mit Beton, Mörtel und Fugenmassen",
+        "betriebsanweisung_vorhanden": "Ja",
+        "substitution": "",
+        "sdb_link": "",
+        "sdb_datei": "",
+        "erstellt_am": date.today().strftime('%d.%m.%Y')
+    }
+    
+    # 2. Lösungsmittelhaltige Farben/Lacke/Kleber
+    standard_gefahrstoffe[str(uuid.uuid4())] = {
+        "name": "Lösungsmittelhaltige Farben/Lacke/Kleber",
+        "handelsbezeichnung": "Verdünner, Kunstharzlacke",
+        "hersteller": "Verschiedene Hersteller",
+        "kategorie": "Lösungsmittelhaltige Farben/Lacke/Kleber",
+        "cas_nummer": "",
+        "lagerort": "Giftschrank / Lager",
+        "menge": "Variabel",
+        "sdb_datum": "",
+        "ghs_symbole": "GHS02, GHS08, GHS07",
+        "gefahrenbeschreibung": "Entzündbar / Gesundheitsschädlich. Dämpfe können Benommenheit verursachen. Kann Organe schädigen (Nervensystem).",
+        "schutzmassnahmen": "Gute Lüftung sicherstellen. Zündquellen fernhalten. Atemschutzmaske (Filter Typ A - braun).",
+        "verwendung": "Lackieren, Kleben mit lösungsmittelhaltigen Produkten",
+        "betriebsanweisung_vorhanden": "Ja",
+        "substitution": "Prüfung: Wasserverdünnbare Alternativen verwenden, wenn möglich",
+        "sdb_link": "",
+        "sdb_datei": "",
+        "erstellt_am": date.today().strftime('%d.%m.%Y')
+    }
+    
+    # 3. Epoxidharze (2-Komponenten)
+    standard_gefahrstoffe[str(uuid.uuid4())] = {
+        "name": "Epoxidharze (2-Komponenten)",
+        "handelsbezeichnung": "Bodenbeschichtung, Injektionsmörtel",
+        "hersteller": "Verschiedene Hersteller",
+        "kategorie": "Epoxidharze (2-Komponenten)",
+        "cas_nummer": "",
+        "lagerort": "Giftschrank / Lager",
+        "menge": "Variabel",
+        "sdb_datum": "",
+        "ghs_symbole": "GHS09, GHS05, GHS07",
+        "gefahrenbeschreibung": "Sensibilisierend / Gewässergefährdend. Starke allergische Hautreaktionen möglich. Giftig für Wasserorganismen.",
+        "schutzmassnahmen": "Hautkontakt strikt vermeiden! Lange Ärmel, spezielle Einweghandschuhe (dicker Nitril), Schutzbrille.",
+        "verwendung": "Bodenbeschichtungen, Injektionsarbeiten",
+        "betriebsanweisung_vorhanden": "Ja",
+        "substitution": "",
+        "sdb_link": "",
+        "sdb_datei": "",
+        "erstellt_am": date.today().strftime('%d.%m.%Y')
+    }
+    
+    # 4. PU-Produkte (Isocyanate)
+    standard_gefahrstoffe[str(uuid.uuid4())] = {
+        "name": "PU-Produkte (Isocyanate)",
+        "handelsbezeichnung": "Bauschaum, Montageschaum, PU-Kleber",
+        "hersteller": "Verschiedene Hersteller",
+        "kategorie": "PU-Produkte (Isocyanate)",
+        "cas_nummer": "",
+        "lagerort": "Giftschrank / Lager",
+        "menge": "Variabel",
+        "sdb_datum": "",
+        "ghs_symbole": "GHS08, GHS07, GHS02",
+        "gefahrenbeschreibung": "Krebserzeugungsverdacht / Atemwegssensibilisierend. Kann bei Einatmen Allergien/Asthma auslösen. Extrem entzündbares Aerosol.",
+        "schutzmassnahmen": "Gute Lüftung. Schutzhandschuhe. Bei schlechter Lüftung Atemschutz notwendig.",
+        "verwendung": "Montagearbeiten, Dichtungsarbeiten, Kleben",
+        "betriebsanweisung_vorhanden": "Ja",
+        "substitution": "",
+        "sdb_link": "",
+        "sdb_datei": "",
+        "erstellt_am": date.today().strftime('%d.%m.%Y')
+    }
+    
+    # 5. Kraftstoffe & Schmiermittel
+    standard_gefahrstoffe[str(uuid.uuid4())] = {
+        "name": "Kraftstoffe & Schmiermittel",
+        "handelsbezeichnung": "Diesel, Benzin, Schalöl",
+        "hersteller": "Verschiedene Hersteller",
+        "kategorie": "Kraftstoffe & Schmiermittel",
+        "cas_nummer": "",
+        "lagerort": "Tankstelle / Auffangwanne",
+        "menge": "Variabel",
+        "sdb_datum": "",
+        "ghs_symbole": "GHS02, GHS08, GHS09",
+        "gefahrenbeschreibung": "Entzündbar / Aspirationsgefahr. Kann tödlich sein bei Verschlucken/Eindringen in Atemwege. Umweltgefährlich.",
+        "schutzmassnahmen": "Auffangwannen nutzen (Gewässerschutz). Feuerlöscher bereitstellen. Nicht rauchen.",
+        "verwendung": "Betankung von Maschinen, Schalung",
+        "betriebsanweisung_vorhanden": "Ja",
+        "substitution": "",
+        "sdb_link": "",
+        "sdb_datei": "",
+        "erstellt_am": date.today().strftime('%d.%m.%Y')
+    }
+    
+    # 6. Reinigungsmittel (Sauer)
+    standard_gefahrstoffe[str(uuid.uuid4())] = {
+        "name": "Reinigungsmittel (Sauer)",
+        "handelsbezeichnung": "Zementschleierentferner, Sanitärreiniger",
+        "hersteller": "Verschiedene Hersteller",
+        "kategorie": "Reinigungsmittel (Sauer)",
+        "cas_nummer": "",
+        "lagerort": "Giftschrank / Lager",
+        "menge": "Variabel",
+        "sdb_datum": "",
+        "ghs_symbole": "GHS05",
+        "gefahrenbeschreibung": "Korrosiv / Ätzend. Verursacht schwere Verätzungen der Haut und Augenschäden.",
+        "schutzmassnahmen": "Schutzbrille (Korbbrille) zwingend. Säurebeständige Handschuhe.",
+        "verwendung": "Reinigung von Zementschleiern, Sanitärreinigung",
+        "betriebsanweisung_vorhanden": "Ja",
+        "substitution": "",
+        "sdb_link": "",
+        "sdb_datei": "",
+        "erstellt_am": date.today().strftime('%d.%m.%Y')
+    }
+    
+    return standard_gefahrstoffe
 
 def save_gefahrstoffe(gefahrstoffe):
     with open(GEFAHRSOFF_DB_FILE, "w") as f: json.dump(gefahrstoffe, f, indent=2)
@@ -1346,7 +1484,26 @@ elif st.session_state.current_page == 'gefahrstoff':
     tab1, tab2 = st.tabs(["📋 Gefahrstoffliste", "➕ Neuen Gefahrstoff hinzufügen"])
     
     with tab1:
-        st.subheader("Alle Gefahrstoffe")
+        col_header1, col_header2 = st.columns([3, 1])
+        with col_header1:
+            st.subheader("Alle Gefahrstoffe")
+        with col_header2:
+            if is_admin():
+                if st.button("🔄 Standard-Gefahrstoffe laden", use_container_width=True, help="Lädt die 6 gängigsten Gefahrstoffe aus dem Muster-Kataster"):
+                    standard_gefahrstoffe = init_standard_gefahrstoffe()
+                    # Nur hinzufügen, wenn noch nicht vorhanden (anhand Name prüfen)
+                    existing_names = [g.get('name', '') for g in gefahrstoffe.values()]
+                    added_count = 0
+                    for std_id, std_data in standard_gefahrstoffe.items():
+                        if std_data.get('name') not in existing_names:
+                            gefahrstoffe[str(uuid.uuid4())] = std_data
+                            added_count += 1
+                    if added_count > 0:
+                        save_gefahrstoffe(gefahrstoffe)
+                        st.success(f"✅ {added_count} Standard-Gefahrstoff(e) hinzugefügt!")
+                        st.rerun()
+                    else:
+                        st.info("ℹ️ Alle Standard-Gefahrstoffe sind bereits vorhanden.")
         
         if not gefahrstoffe:
             st.info("Noch keine Gefahrstoffe vorhanden. Fügen Sie einen neuen Gefahrstoff hinzu.")
