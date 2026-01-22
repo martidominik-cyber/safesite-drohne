@@ -1690,31 +1690,43 @@ elif st.session_state.current_page == 'gefahrstoff':
 elif st.session_state.current_page == 'wetter':
     st.header("🌤️ Wetter-Warnungen")
     st.markdown("**Direkte Schnittstelle zu MeteoSchweiz für Sturmwarnungen (Kranbetrieb einstellen) oder Hitzewarnungen (SUVA Hitzemassnahmen).**")
-    st.markdown("---")
+    st.markdown("")
     
-    # MeteoSchweiz Links
-    with st.container(border=True):
-        st.markdown("### 📡 MeteoSchweiz")
-        st.caption("Offizieller Wetterdienst der Schweiz")
-        st.markdown("")
-        
-        # Direkte Links mit st.link_button
-        try:
-            st.link_button("📊 Wettervorhersage (Karte)", "https://www.meteoschweiz.admin.ch/#tab=forecast-map", use_container_width=True, type="primary")
-            st.link_button("🌪️ Gefahrenkarte (Wetterwarnungen)", "https://www.meteoschweiz.admin.ch/service-und-publikationen/applikationen/gefahren.html#tab=severe-weather-map&weather-tab=all", use_container_width=True)
-        except:
-            # Fallback für ältere Streamlit-Versionen
-            st.markdown('[📊 **Wettervorhersage (Karte)**](https://www.meteoschweiz.admin.ch/#tab=forecast-map)', unsafe_allow_html=True)
+    # MeteoSchweiz Links - optisch verbessert
+    col_link1, col_link2 = st.columns(2)
+    
+    with col_link1:
+        with st.container(border=True):
+            st.markdown("### 📊 Wettervorhersage")
+            st.caption("Aktuelle Wetterkarte der Schweiz")
             st.markdown("")
-            st.markdown('[🌪️ **Gefahrenkarte (Wetterwarnungen)**](https://www.meteoschweiz.admin.ch/service-und-publikationen/applikationen/gefahren.html#tab=severe-weather-map&weather-tab=all)', unsafe_allow_html=True)
-        
-        st.markdown("---")
-        st.info("💡 **Hinweis:** Für detaillierte, aktuelle Warnungen besuchen Sie bitte die MeteoSchweiz-Website direkt. Installieren Sie die MeteoSwiss App auf Ihrem Smartphone für Push-Benachrichtigungen bei Warnungen.")
+            try:
+                st.link_button("🗺️ Karte öffnen", "https://www.meteoschweiz.admin.ch/#tab=forecast-map", use_container_width=True, type="primary")
+            except:
+                st.markdown('[🗺️ **Karte öffnen**](https://www.meteoschweiz.admin.ch/#tab=forecast-map)', unsafe_allow_html=True)
+            st.markdown("")
+            st.caption("📍 Zeigt aktuelle Wetterbedingungen und Vorhersage")
+    
+    with col_link2:
+        with st.container(border=True):
+            st.markdown("### 🌪️ Gefahrenkarte")
+            st.caption("Aktuelle Wetterwarnungen")
+            st.markdown("")
+            try:
+                st.link_button("⚠️ Warnungen öffnen", "https://www.meteoschweiz.admin.ch/service-und-publikationen/applikationen/gefahren.html#tab=severe-weather-map&weather-tab=all", use_container_width=True, type="primary")
+            except:
+                st.markdown('[⚠️ **Warnungen öffnen**](https://www.meteoschweiz.admin.ch/service-und-publikationen/applikationen/gefahren.html#tab=severe-weather-map&weather-tab=all)', unsafe_allow_html=True)
+            st.markdown("")
+            st.caption("🚨 Zeigt aktuelle Unwetter- und Gefahrenwarnungen")
+    
+    st.markdown("")
+    st.info("💡 **Hinweis:** Für detaillierte, aktuelle Warnungen besuchen Sie bitte die MeteoSchweiz-Website direkt. Installieren Sie die MeteoSwiss App auf Ihrem Smartphone für Push-Benachrichtigungen bei Warnungen.")
     
     st.markdown("---")
     
-    # Wichtige Warnungen für Baustellen
+    # Wichtige Warnungen für Baustellen - optisch verbessert
     st.subheader("⚠️ Wichtige Warnungen für Baustellen")
+    st.markdown("")
     
     col_warn1, col_warn2 = st.columns(2)
     
@@ -1723,9 +1735,24 @@ elif st.session_state.current_page == 'wetter':
             st.markdown("### 🌪️ Sturmwarnungen")
             st.markdown("**Kranbetrieb einstellen bei:**")
             st.markdown("")
-            st.markdown("**🔴 Windgeschwindigkeit > 50 km/h (Bft 7)**")
-            st.markdown("**🔴 Böen > 70 km/h**")
-            st.markdown("**🔴 Warnung vor Sturm oder Orkan**")
+            col_crit1, col_crit2 = st.columns([1, 3])
+            with col_crit1:
+                st.markdown("🔴")
+            with col_crit2:
+                st.markdown("**Windgeschwindigkeit > 50 km/h (Bft 7)**")
+            
+            col_crit3, col_crit4 = st.columns([1, 3])
+            with col_crit3:
+                st.markdown("🔴")
+            with col_crit4:
+                st.markdown("**Böen > 70 km/h**")
+            
+            col_crit5, col_crit6 = st.columns([1, 3])
+            with col_crit5:
+                st.markdown("🔴")
+            with col_crit6:
+                st.markdown("**Warnung vor Sturm oder Orkan**")
+            
             st.markdown("")
             st.error("⚠️ **SOFORTMASSNAHME:** Kranbetrieb sofort einstellen! Lasten sichern, Kran in Windrichtung ausrichten.")
             st.markdown("")
@@ -1739,9 +1766,24 @@ elif st.session_state.current_page == 'wetter':
             st.markdown("### ☀️ Hitzewarnungen (SUVA)")
             st.markdown("**Massnahmen bei Hitze:**")
             st.markdown("")
-            st.markdown("**🟡 Temperaturen > 30°C:** Erhöhte Vorsicht")
-            st.markdown("**🟠 Temperaturen > 35°C:** Zusätzliche Pausen")
-            st.markdown("**🔴 Hitzewelle:** Anpassung der Arbeitszeiten")
+            col_temp1, col_temp2 = st.columns([1, 3])
+            with col_temp1:
+                st.markdown("🟡")
+            with col_temp2:
+                st.markdown("**Temperaturen > 30°C:** Erhöhte Vorsicht")
+            
+            col_temp3, col_temp4 = st.columns([1, 3])
+            with col_temp3:
+                st.markdown("🟠")
+            with col_temp4:
+                st.markdown("**Temperaturen > 35°C:** Zusätzliche Pausen")
+            
+            col_temp5, col_temp6 = st.columns([1, 3])
+            with col_temp5:
+                st.markdown("🔴")
+            with col_temp6:
+                st.markdown("**Hitzewelle:** Anpassung der Arbeitszeiten")
+            
             st.markdown("")
             st.warning("⚠️ **SUVA-Regeln:** Ausreichend trinken, Schattenplätze schaffen, Arbeitszeiten anpassen.")
             st.markdown("")
