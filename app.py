@@ -1692,46 +1692,24 @@ elif st.session_state.current_page == 'wetter':
     st.markdown("**Direkte Schnittstelle zu MeteoSchweiz für Sturmwarnungen (Kranbetrieb einstellen) oder Hitzewarnungen (SUVA Hitzemassnahmen).**")
     st.markdown("---")
     
-    # Wetterdienste in Spalten mit Buttons
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        with st.container(border=True):
-            st.markdown("### 📡 MeteoSchweiz")
-            st.caption("Offizieller Wetterdienst der Schweiz")
+    # MeteoSchweiz Links
+    with st.container(border=True):
+        st.markdown("### 📡 MeteoSchweiz")
+        st.caption("Offizieller Wetterdienst der Schweiz")
+        st.markdown("")
+        
+        # Direkte Links mit st.link_button
+        try:
+            st.link_button("📊 Wettervorhersage (Karte)", "https://www.meteoschweiz.admin.ch/#tab=forecast-map", use_container_width=True, type="primary")
+            st.link_button("🌪️ Gefahrenkarte (Wetterwarnungen)", "https://www.meteoschweiz.admin.ch/service-und-publikationen/applikationen/gefahren.html#tab=severe-weather-map&weather-tab=all", use_container_width=True)
+        except:
+            # Fallback für ältere Streamlit-Versionen
+            st.markdown('[📊 **Wettervorhersage (Karte)**](https://www.meteoschweiz.admin.ch/#tab=forecast-map)', unsafe_allow_html=True)
             st.markdown("")
-            
-            # Direkte Links mit st.link_button (Streamlit 1.28+)
-            try:
-                st.link_button("🌪️ Aktuelle Wetterwarnungen öffnen", "https://www.meteoschweiz.admin.ch/home/wetter/wetter-und-klima-vorhersagen/wetterwarnungen.html", use_container_width=True, type="primary")
-                st.link_button("📊 Wettervorhersage öffnen", "https://www.meteoschweiz.admin.ch/home/wetter.html", use_container_width=True)
-                st.link_button("📍 Warnungen für Ihre Region", "https://www.meteoschweiz.admin.ch/home/wetter/wetter-und-klima-vorhersagen/wetterwarnungen.html", use_container_width=True)
-            except:
-                # Fallback für ältere Streamlit-Versionen
-                st.markdown('[🌪️ Aktuelle Wetterwarnungen öffnen](https://www.meteoschweiz.admin.ch/home/wetter/wetter-und-klima-vorhersagen/wetterwarnungen.html)', unsafe_allow_html=True)
-                st.markdown('[📊 Wettervorhersage öffnen](https://www.meteoschweiz.admin.ch/home/wetter.html)', unsafe_allow_html=True)
-                st.markdown('[📍 Warnungen für Ihre Region](https://www.meteoschweiz.admin.ch/home/wetter/wetter-und-klima-vorhersagen/wetterwarnungen.html)', unsafe_allow_html=True)
-            
-            st.markdown("---")
-            st.info("💡 **Hinweis:** Für detaillierte, aktuelle Warnungen besuchen Sie bitte die MeteoSchweiz-Website direkt.")
-    
-    with col2:
-        with st.container(border=True):
-            st.markdown("### 🔍 search.ch Wetter")
-            st.caption("Alternative Wetterquelle")
-            st.markdown("")
-            
-            # Direkte Links mit st.link_button
-            try:
-                st.link_button("📊 Wettervorhersage search.ch", "https://www.search.ch/wetter", use_container_width=True, type="primary")
-                st.link_button("⚠️ Wetterwarnungen search.ch", "https://www.search.ch/wetter/warnungen", use_container_width=True)
-            except:
-                # Fallback für ältere Streamlit-Versionen
-                st.markdown('[📊 Wettervorhersage search.ch](https://www.search.ch/wetter)', unsafe_allow_html=True)
-                st.markdown('[⚠️ Wetterwarnungen search.ch](https://www.search.ch/wetter/warnungen)', unsafe_allow_html=True)
-            
-            st.markdown("---")
-            st.info("💡 **Tipp:** Installieren Sie die MeteoSwiss App auf Ihrem Smartphone für Push-Benachrichtigungen bei Warnungen.")
+            st.markdown('[🌪️ **Gefahrenkarte (Wetterwarnungen)**](https://www.meteoschweiz.admin.ch/service-und-publikationen/applikationen/gefahren.html#tab=severe-weather-map&weather-tab=all)', unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.info("💡 **Hinweis:** Für detaillierte, aktuelle Warnungen besuchen Sie bitte die MeteoSchweiz-Website direkt. Installieren Sie die MeteoSwiss App auf Ihrem Smartphone für Push-Benachrichtigungen bei Warnungen.")
     
     st.markdown("---")
     
