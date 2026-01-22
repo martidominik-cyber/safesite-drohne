@@ -552,8 +552,8 @@ with st.sidebar:
         st.image(LOGO_FILE, use_container_width=True)
         
     st.title("Menü")
-    page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV", "🚨 Notfallmanagement", "🧪 Gefahrstoffkataster"]
-    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'notfall':4, 'gefahrstoff':5, 'kunden':6}
+    page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV", "🚨 Notfallmanagement", "🧪 Gefahrstoffkataster", "🌤️ Wetter-Warnungen"]
+    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'notfall':4, 'gefahrstoff':5, 'wetter':6, 'kunden':7}
     
     # Admin-Menüpunkt hinzufügen, wenn Admin eingeloggt
     if is_admin():
@@ -574,6 +574,7 @@ with st.sidebar:
     elif page == "⚖️ BauAV": st.session_state.current_page = 'bauav'
     elif page == "🚨 Notfallmanagement": st.session_state.current_page = 'notfall'
     elif page == "🧪 Gefahrstoffkataster": st.session_state.current_page = 'gefahrstoff'
+    elif page == "🌤️ Wetter-Warnungen": st.session_state.current_page = 'wetter'
     elif page == "👥 Kundenverwaltung": st.session_state.current_page = 'kunden'
     
     st.divider()
@@ -664,6 +665,10 @@ if st.session_state.current_page == 'home':
         
         if st.button("🧪 Gefahrstoffkataster", use_container_width=True):
             st.session_state.current_page = 'gefahrstoff'
+            st.rerun()
+        
+        if st.button("🌤️ Wetter-Warnungen", use_container_width=True):
+            st.session_state.current_page = 'wetter'
             st.rerun()
     
     with col2:
@@ -1681,6 +1686,133 @@ elif st.session_state.current_page == 'gefahrstoff':
                         save_gefahrstoffe(gefahrstoffe)
                         st.success(f"✅ Gefahrstoff '{handelsbezeichnung}' erfolgreich hinzugefügt!")
                         st.rerun()
+
+elif st.session_state.current_page == 'wetter':
+    st.header("🌤️ Wetter-Warnungen")
+    st.markdown("**Direkte Schnittstelle zu MeteoSchweiz für Sturmwarnungen (Kranbetrieb einstellen) oder Hitzewarnungen (SUVA Hitzemassnahmen).**")
+    st.markdown("---")
+    
+    # Wetterdienste in Spalten
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📡 MeteoSchweiz")
+        st.markdown("**Offizieller Wetterdienst der Schweiz**")
+        st.markdown("")
+        st.markdown("🔗 [Aktuelle Wetterwarnungen öffnen](https://www.meteoschweiz.admin.ch/home/wetter/wetter-und-klima-vorhersagen/wetterwarnungen.html)")
+        st.markdown("🔗 [Wettervorhersage öffnen](https://www.meteoschweiz.admin.ch/home/wetter.html)")
+        st.markdown("🔗 [Warnungen für Ihre Region](https://www.meteoschweiz.admin.ch/home/wetter/wetter-und-klima-vorhersagen/wetterwarnungen.html)")
+        
+        # Embedded MeteoSchweiz Widget (wenn verfügbar)
+        st.markdown("---")
+        st.markdown("### Aktuelle Warnungen")
+        st.info("💡 **Hinweis:** Für detaillierte, aktuelle Warnungen besuchen Sie bitte die MeteoSchweiz-Website direkt.")
+    
+    with col2:
+        st.subheader("🔍 search.ch Wetter")
+        st.markdown("**Alternative Wetterquelle**")
+        st.markdown("")
+        st.markdown("🔗 [Wettervorhersage search.ch](https://www.search.ch/wetter)")
+        st.markdown("🔗 [Wetterwarnungen search.ch](https://www.search.ch/wetter/warnungen)")
+        
+        st.markdown("---")
+        st.markdown("### Wetter-App")
+        st.info("💡 **Tipp:** Installieren Sie die MeteoSwiss App auf Ihrem Smartphone für Push-Benachrichtigungen bei Warnungen.")
+    
+    st.markdown("---")
+    
+    # Wichtige Warnungen für Baustellen
+    st.subheader("⚠️ Wichtige Warnungen für Baustellen")
+    
+    col_warn1, col_warn2 = st.columns(2)
+    
+    with col_warn1:
+        with st.container(border=True):
+            st.markdown("### 🌪️ Sturmwarnungen")
+            st.markdown("**Kranbetrieb einstellen bei:**")
+            st.markdown("- Windgeschwindigkeit > 50 km/h (Bft 7)")
+            st.markdown("- Böen > 70 km/h")
+            st.markdown("- Warnung vor Sturm oder Orkan")
+            st.markdown("")
+            st.warning("⚠️ **Sofortmassnahme:** Kranbetrieb sofort einstellen! Lasten sichern, Kran in Windrichtung ausrichten.")
+            st.markdown("")
+            st.markdown("**Weitere Massnahmen:**")
+            st.markdown("- Lose Materialien sichern")
+            st.markdown("- Gerüste prüfen (Verankerung)")
+            st.markdown("- Baustelle absperren bei Gefahr")
+    
+    with col_warn2:
+        with st.container(border=True):
+            st.markdown("### ☀️ Hitzewarnungen (SUVA)")
+            st.markdown("**Massnahmen bei Hitze:**")
+            st.markdown("- Temperaturen > 30°C: Erhöhte Vorsicht")
+            st.markdown("- Temperaturen > 35°C: Zusätzliche Pausen")
+            st.markdown("- Warnung vor Hitzewelle: Anpassung der Arbeitszeiten")
+            st.markdown("")
+            st.warning("⚠️ **SUVA-Regeln:** Ausreichend trinken, Schattenplätze schaffen, Arbeitszeiten anpassen.")
+            st.markdown("")
+            st.markdown("**Weitere Massnahmen:**")
+            st.markdown("- Genügend Trinkwasser bereitstellen")
+            st.markdown("- Schattenplätze einrichten")
+            st.markdown("- Arbeitszeiten anpassen (früher beginnen)")
+            st.markdown("- PSA anpassen (luftdurchlässige Kleidung)")
+    
+    st.markdown("---")
+    
+    # Praktische Checkliste
+    st.subheader("📋 Checkliste: Wetter-Check vor Baustellenstart")
+    
+    with st.container(border=True):
+        col_check1, col_check2 = st.columns(2)
+        
+        with col_check1:
+            st.markdown("#### Vor Arbeitsbeginn prüfen:")
+            st.markdown("- ☐ Aktuelle Wetterwarnungen abrufen")
+            st.markdown("- ☐ Windgeschwindigkeit prüfen (Kranbetrieb?)")
+            st.markdown("- ☐ Temperatur prüfen (Hitzemassnahmen?)")
+            st.markdown("- ☐ Niederschlagswahrscheinlichkeit")
+            st.markdown("- ☐ Gewitterwarnung vorhanden?")
+        
+        with col_check2:
+            st.markdown("#### Bei Warnungen:")
+            st.markdown("- ☐ Baustellenleiter informieren")
+            st.markdown("- ☐ Massnahmen umsetzen (Kran stoppen, etc.)")
+            st.markdown("- ☐ Mitarbeiter informieren")
+            st.markdown("- ☐ PSA anpassen")
+            st.markdown("- ☐ Arbeitszeiten anpassen")
+    
+    st.markdown("---")
+    
+    # SUVA Hitzemassnahmen
+    st.subheader("🌡️ SUVA Hitzemassnahmen (Detail)")
+    
+    with st.expander("📖 Detaillierte SUVA-Richtlinien für Hitze", expanded=False):
+        st.markdown("""
+        **Bei Temperaturen über 30°C:**
+        - Regelmässige Pausen im Schatten (alle 1-2 Stunden)
+        - Mindestens 0.5 Liter Wasser pro Stunde trinken
+        - Leichte, luftdurchlässige Kleidung tragen
+        - Kopfbedeckung verwenden
+        
+        **Bei Temperaturen über 35°C:**
+        - Arbeitszeiten anpassen (früher beginnen, Mittagspause verlängern)
+        - Schwere körperliche Arbeiten vermeiden
+        - Zusätzliche Pausen (alle 30-60 Minuten)
+        - Überwachung der Mitarbeiter (Anzeichen von Hitzschlag)
+        
+        **Symptome eines Hitzschlags:**
+        - Kopfschmerzen, Schwindel, Übelkeit
+        - Rote, heisse, trockene Haut
+        - Verwirrtheit, Bewusstlosigkeit
+        
+        **Erste Hilfe bei Hitzschlag:**
+        - Sofort in den Schatten bringen
+        - Kühlen (feuchte Tücher, Wasser)
+        - Notruf 144 wählen
+        """)
+    
+    st.markdown("---")
+    st.info("💡 **Wichtig:** Diese Seite dient als Schnittstelle zu offiziellen Wetterdiensten. Für aktuelle, verbindliche Warnungen konsultieren Sie bitte immer die offiziellen Quellen (MeteoSchweiz oder search.ch).")
 
 elif st.session_state.current_page == 'kunden':
     if not is_admin():
