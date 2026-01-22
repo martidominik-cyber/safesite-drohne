@@ -1320,6 +1320,20 @@ elif st.session_state.current_page == 'notfall':
 elif st.session_state.current_page == 'gefahrstoff':
     st.header("🧪 Gefahrstoffkataster")
     st.markdown("**Digitaler Zugriff auf Sicherheitsdatenblätter für verwendete Chemikalien oder Baustoffe.**")
+    
+    # Wichtige Hinweise für die Praxis
+    with st.expander("ℹ️ Wichtige Hinweise für die Praxis in der Schweiz", expanded=False):
+        st.markdown("""
+        **Sicherheitsdatenblatt-Pflicht:**
+        - Sie müssen das Sicherheitsdatenblatt (SDB) nicht zwingend ausdrucken, aber jeder Mitarbeiter muss jederzeit digital Zugriff darauf haben (z.B. Tablet auf der Baustelle oder Ordner im Baucontainer).
+        
+        **Mengen-Schwelle:**
+        - Es gibt keine "Mindestmenge", unter der man nichts dokumentieren muss. Aber: Für haushaltsübliche Produkte in Kleinstmengen (z.B. eine Tube Sekundenkleber oder Spülmittel) müssen Sie in der Regel kein Kataster führen. Sobald es gewerblich genutzt wird (der 10-Liter-Kanister Reiniger), gehört es hinein.
+        
+        **Substitution (Ersatzpflicht):**
+        - Gemäss Schweizer Unfallversicherungsgesetz (UVG) müssen Sie prüfen: Kann ich diesen gefährlichen Stoff durch einen harmloseren ersetzen? (z.B. wasserbasierter Lack statt lösungsmittelhaltiger Lack). Wenn ja, müssen Sie das tun. Dokumentieren Sie diese Entscheidung kurz.
+        """)
+    
     st.markdown("---")
     
     gefahrstoffe = load_gefahrstoffe()
@@ -1339,33 +1353,90 @@ elif st.session_state.current_page == 'gefahrstoff':
         else:
             displayed_count = 0
             for gefahrstoff_id, gefahrstoff_data in gefahrstoffe.items():
-                # Suchfilter anwenden
+                # Suchfilter anwenden (erweitert)
                 if search_query:
                     search_lower = search_query.lower()
                     name = gefahrstoff_data.get('name', '').lower()
+                    handelsbezeichnung = gefahrstoff_data.get('handelsbezeichnung', '').lower()
                     kategorie = gefahrstoff_data.get('kategorie', '').lower()
                     cas = gefahrstoff_data.get('cas_nummer', '').lower()
                     beschreibung = gefahrstoff_data.get('beschreibung', '').lower()
+                    hersteller = gefahrstoff_data.get('hersteller', '').lower()
+                    lagerort = gefahrstoff_data.get('lagerort', '').lower()
+                    gefahrenbeschreibung = gefahrstoff_data.get('gefahrenbeschreibung', '').lower()
                     
                     if (search_lower not in name and 
+                        search_lower not in handelsbezeichnung and
                         search_lower not in kategorie and 
                         search_lower not in cas and 
-                        search_lower not in beschreibung):
+                        search_lower not in beschreibung and
+                        search_lower not in hersteller and
+                        search_lower not in lagerort and
+                        search_lower not in gefahrenbeschreibung):
                         continue
                 
                 displayed_count += 1
                 with st.container(border=True):
-                    col1, col2 = st.columns([3, 1])
-                    with col1:
-                        st.markdown(f"### {gefahrstoff_data.get('name', 'Unbekannt')}")
-                        if gefahrstoff_data.get('kategorie'):
-                            st.markdown(f"**Kategorie:** {gefahrstoff_data.get('kategorie')}")
-                        if gefahrstoff_data.get('cas_nummer'):
-                            st.markdown(f"**CAS-Nummer:** {gefahrstoff_data.get('cas_nummer')}")
-                        if gefahrstoff_data.get('beschreibung'):
-                            st.write(gefahrstoff_data.get('beschreibung'))
+                    # Header mit Name und Löschen-Button
+                    col_header1, col_header2 = st.columns([4, 1])
+                    with col_header1:
+                        st.markdown(f"### {gefahrstoff_data.get('handelsbezeichnung', gefahrstoff_data.get('name', 'Unbekannt'))}")
+                    with col_header2:
+                        if is_admin():
+                            if st.button("🗑️ Löschen", key=f"del_{gefahrstoff_id}", use_container_width=True):
+                                del gefahrstoffe[gefahrstoff_id]
+                                save_gefahrstoffe(gefahrstoffe)
+                                st.success("✅ Gefahrstoff gelöscht!")
+                                st.rerun()
+                    
+                    # Erweiterte Informationen in Expander
+                    with st.expander("📋 Alle Details anzeigen", expanded=False):
+                        col1, col2 = st.columns(2)
                         
-                        # Sicherheitsdatenblatt-Link oder Upload
+                        with col1:
+                            st.markdown("#### Administrative Daten")
+                            if gefahrstoff_data.get('handelsbezeichnung'):
+                                st.markdown(f"**Handelsbezeichnung:** {gefahrstoff_data.get('handelsbezeichnung')}")
+                            if gefahrstoff_data.get('hersteller'):
+                                st.markdown(f"**Hersteller/Lieferant:** {gefahrstoff_data.get('hersteller')}")
+                            if gefahrstoff_data.get('kategorie'):
+                                st.markdown(f"**Kategorie:** {gefahrstoff_data.get('kategorie')}")
+                            if gefahrstoff_data.get('cas_nummer'):
+                                st.markdown(f"**CAS-Nummer:** {gefahrstoff_data.get('cas_nummer')}")
+                            if gefahrstoff_data.get('lagerort'):
+                                st.markdown(f"**Lagerort:** {gefahrstoff_data.get('lagerort')}")
+                            if gefahrstoff_data.get('menge'):
+                                st.markdown(f"**Menge:** {gefahrstoff_data.get('menge')}")
+                            if gefahrstoff_data.get('sdb_datum'):
+                                st.markdown(f"**SDB Datum:** {gefahrstoff_data.get('sdb_datum')}")
+                        
+                        with col2:
+                            st.markdown("#### Gefahrenkennzeichnung")
+                            if gefahrstoff_data.get('ghs_symbole'):
+                                st.markdown(f"**GHS-Symbole:** {gefahrstoff_data.get('ghs_symbole')}")
+                            if gefahrstoff_data.get('gefahrenbeschreibung'):
+                                st.markdown(f"**Gefahrenbeschreibung:**")
+                                st.write(gefahrstoff_data.get('gefahrenbeschreibung'))
+                            if gefahrstoff_data.get('schutzmassnahmen'):
+                                st.markdown(f"**Schutzmassnahmen (PSA & Technik):**")
+                                st.write(gefahrstoff_data.get('schutzmassnahmen'))
+                        
+                        st.markdown("---")
+                        st.markdown("#### Betriebsanweisung & Unterweisung")
+                        col3, col4 = st.columns(2)
+                        with col3:
+                            if gefahrstoff_data.get('verwendung'):
+                                st.markdown(f"**Verwendung:** {gefahrstoff_data.get('verwendung')}")
+                            if gefahrstoff_data.get('betriebsanweisung_vorhanden'):
+                                status = "✅ Ja" if gefahrstoff_data.get('betriebsanweisung_vorhanden') == "Ja" else "❌ Nein"
+                                st.markdown(f"**Betriebsanweisung vorhanden:** {status}")
+                        with col4:
+                            if gefahrstoff_data.get('substitution'):
+                                st.markdown(f"**Substitution (Ersatzpflicht):**")
+                                st.write(gefahrstoff_data.get('substitution'))
+                        
+                        st.markdown("---")
+                        st.markdown("#### Sicherheitsdatenblatt")
                         sdb_link = gefahrstoff_data.get('sdb_link', '')
                         sdb_datei = gefahrstoff_data.get('sdb_datei', '')
                         if sdb_link:
@@ -1375,13 +1446,19 @@ elif st.session_state.current_page == 'gefahrstoff':
                         else:
                             st.caption("⚠️ Kein Sicherheitsdatenblatt hinterlegt")
                     
-                    with col2:
-                        if is_admin():
-                            if st.button("🗑️ Löschen", key=f"del_{gefahrstoff_id}", use_container_width=True):
-                                del gefahrstoffe[gefahrstoff_id]
-                                save_gefahrstoffe(gefahrstoffe)
-                                st.success("✅ Gefahrstoff gelöscht!")
-                                st.rerun()
+                    # Kurzübersicht (immer sichtbar)
+                    col_short1, col_short2 = st.columns(2)
+                    with col_short1:
+                        if gefahrstoff_data.get('kategorie'):
+                            st.caption(f"📦 {gefahrstoff_data.get('kategorie')}")
+                        if gefahrstoff_data.get('lagerort'):
+                            st.caption(f"📍 {gefahrstoff_data.get('lagerort')}")
+                    with col_short2:
+                        if gefahrstoff_data.get('ghs_symbole'):
+                            st.caption(f"⚠️ {gefahrstoff_data.get('ghs_symbole')}")
+                        sdb_link = gefahrstoff_data.get('sdb_link', '')
+                        if sdb_link:
+                            st.markdown(f"📄 [SDB öffnen]({sdb_link})", unsafe_allow_html=True)
             
             if search_query and displayed_count == 0:
                 st.info("💡 **Tipp:** Keine Gefahrstoffe gefunden. Versuchen Sie eine andere Suchanfrage.")
@@ -1393,30 +1470,59 @@ elif st.session_state.current_page == 'gefahrstoff':
             st.subheader("Neuen Gefahrstoff hinzufügen")
             
             with st.form("neuer_gefahrstoff", clear_on_submit=True):
-                name = st.text_input("Name des Gefahrstoffs *", help="z.B. Beton, Lösungsmittel, Kleber")
-                kategorie = st.selectbox("Kategorie", ["Chemikalie", "Baustoff", "Klebstoff", "Lack/Farbe", "Reinigungsmittel", "Sonstiges"])
+                st.markdown("#### Administrative Daten (Pflicht)")
+                handelsbezeichnung = st.text_input("Genaue Handelsbezeichnung *", help="z.B. 'Holcim Optimo 4' statt nur 'Zement'")
+                hersteller = st.text_input("Hersteller/Lieferant *", help="Name der Firma")
+                kategorie = st.selectbox("Kategorie *", ["Zementhaltige Produkte", "Lösungsmittelhaltige Farben/Lacke/Kleber", "Epoxidharze (2-Komponenten)", "PU-Produkte (Isocyanate)", "Kraftstoffe & Schmiermittel", "Reinigungsmittel (Sauer)", "Chemikalie", "Baustoff", "Klebstoff", "Lack/Farbe", "Reinigungsmittel", "Sonstiges"])
                 cas_nummer = st.text_input("CAS-Nummer (optional)", help="Eindeutige Identifikationsnummer")
-                beschreibung = st.text_area("Beschreibung (optional)", help="Kurze Beschreibung des Gefahrstoffs")
-                sdb_link = st.text_input("Link zum Sicherheitsdatenblatt (optional)", help="URL zum PDF oder Online-SDB")
+                lagerort = st.text_input("Lagerort *", help="z.B. 'Baucontainer A, Giftschrank' oder 'Magazin Regal 3'")
+                menge = st.text_input("Durchschnittliche Lagermenge *", help="z.B. 'ca. 200 kg'")
+                sdb_datum = st.date_input("SDB Datum (Erstellungsdatum des Sicherheitsdatenblatts)", value=None, help="Wenn älter als 5 Jahre -> neu anfordern")
+                
+                st.markdown("---")
+                st.markdown("#### Gefahrenkennzeichnung")
+                ghs_symbole = st.text_input("GHS-Symbole (Kennzeichnung)", help="z.B. 'GHS05, GHS07' für Ätzend/Reizend")
+                gefahrenbeschreibung = st.text_area("Gefahrenbeschreibung (Risiken)", help="z.B. 'Verursacht schwere Augenschäden. Hautreizungen. Staub reizt Atemwege.'")
+                schutzmassnahmen = st.text_area("Wichtige Schutzmassnahmen (PSA & Technik)", help="z.B. 'Handschuhe (Nitril/Butyl), Schutzbrille, lange Kleidung. Bei Staubentwicklung: Maske FFP2.'")
+                
+                st.markdown("---")
+                st.markdown("#### Betriebsanweisung & Unterweisung")
+                verwendung = st.text_input("Verwendung", help="Kurze Beschreibung, z.B. 'Verkleben von Bodenplatten'")
+                betriebsanweisung_vorhanden = st.selectbox("Betriebsanweisung vorhanden?", ["Ja", "Nein"], help="Für Gefahrstoffe (besonders CMR-Stoffe) benötigen Sie eine schriftliche Anweisung")
+                substitution = st.text_area("Substitution (Ersatzpflicht)", help="Kann dieser gefährliche Stoff durch einen harmloseren ersetzt werden? Dokumentieren Sie diese Entscheidung.")
+                
+                st.markdown("---")
+                st.markdown("#### Sicherheitsdatenblatt")
+                sdb_link = st.text_input("Link zum Sicherheitsdatenblatt (optional)", help="URL zum PDF oder Online-SDB. Jeder Mitarbeiter muss jederzeit digital Zugriff darauf haben.")
                 
                 submitted = st.form_submit_button("Gefahrstoff hinzufügen", use_container_width=True, type="primary")
                 
                 if submitted:
-                    if not name:
-                        st.error("❌ Bitte geben Sie einen Namen ein!")
+                    if not handelsbezeichnung or not hersteller or not lagerort or not menge:
+                        st.error("❌ Bitte füllen Sie alle Pflichtfelder aus!")
                     else:
                         new_id = str(uuid.uuid4())
                         gefahrstoffe[new_id] = {
-                            "name": name,
+                            "name": handelsbezeichnung,  # Für Rückwärtskompatibilität
+                            "handelsbezeichnung": handelsbezeichnung,
+                            "hersteller": hersteller,
                             "kategorie": kategorie,
                             "cas_nummer": cas_nummer if cas_nummer else "",
-                            "beschreibung": beschreibung if beschreibung else "",
+                            "lagerort": lagerort,
+                            "menge": menge,
+                            "sdb_datum": sdb_datum.strftime('%d.%m.%Y') if sdb_datum else "",
+                            "ghs_symbole": ghs_symbole if ghs_symbole else "",
+                            "gefahrenbeschreibung": gefahrenbeschreibung if gefahrenbeschreibung else "",
+                            "schutzmassnahmen": schutzmassnahmen if schutzmassnahmen else "",
+                            "verwendung": verwendung if verwendung else "",
+                            "betriebsanweisung_vorhanden": betriebsanweisung_vorhanden,
+                            "substitution": substitution if substitution else "",
                             "sdb_link": sdb_link if sdb_link else "",
                             "sdb_datei": "",
                             "erstellt_am": date.today().strftime('%d.%m.%Y')
                         }
                         save_gefahrstoffe(gefahrstoffe)
-                        st.success(f"✅ Gefahrstoff '{name}' erfolgreich hinzugefügt!")
+                        st.success(f"✅ Gefahrstoff '{handelsbezeichnung}' erfolgreich hinzugefügt!")
                         st.rerun()
 
 elif st.session_state.current_page == 'kunden':
