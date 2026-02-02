@@ -278,7 +278,7 @@ except:
 
 # Optional: OpenAI (GPT) für Berichtsverfeinerung (Gemini + GPT)
 OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "")
-OPENAI_MODEL = st.secrets.get("OPENAI_MODEL", "gpt-4o")  # z.B. "gpt-4o", "gpt-4-turbo", "gpt-5.2"
+OPENAI_MODEL = st.secrets.get("OPENAI_MODEL", "gpt-5.2")  # Nur GPT-5.2 für Berichtsverfeinerung
 OPENAI_AVAILABLE = bool(OPENAI_API_KEY and OPENAI_API_KEY.strip())
 
 # DATEIEN
@@ -384,7 +384,7 @@ def make_safe_text(text):
     return text.encode('latin-1', 'ignore').decode('latin-1')
 
 def refine_analysis_with_gpt(raw_list):
-    """Verfeinert die Gemini-Mängelliste mit GPT für professionellere Berichtstexte (Gemini + GPT)."""
+    """Verfeinert die Gemini-3.0-Pro-Mängelliste mit GPT-5.2 für professionellere Berichtstexte."""
     if not OPENAI_AVAILABLE or not raw_list or OpenAI is None:
         return raw_list
     try:
@@ -748,7 +748,7 @@ elif st.session_state.current_page == 'safesite':
                     try:
                         st.success(f"✅ Video ausgewählt: {vf.name}")
                         if OPENAI_AVAILABLE:
-                            st.checkbox("Berichtstexte zusätzlich mit GPT verfeinern (Gemini + GPT)", value=False, key="use_gpt_refinement", help="Gemini analysiert die Bilder, GPT verfeinert die Berichtstexte.")
+                            st.checkbox("Berichtstexte zusätzlich mit GPT-5.2 verfeinern (Gemini 3.0 Pro + GPT-5.2)", value=False, key="use_gpt_refinement", help="Gemini 3.0 Pro analysiert die Bilder, GPT-5.2 verfeinert die Berichtstexte.")
                         if st.button("Analyse starten", type="primary", use_container_width=True):
                             try:
                                 suffix = os.path.splitext(vf.name)[1] if os.path.splitext(vf.name)[1] else '.mp4'
@@ -788,7 +788,7 @@ elif st.session_state.current_page == 'safesite':
                         if len(pf) > 5:
                             st.caption(f"... und {len(pf) - 5} weitere")
                         if OPENAI_AVAILABLE:
-                            st.checkbox("Berichtstexte zusätzlich mit GPT verfeinern (Gemini + GPT)", value=False, key="use_gpt_refinement", help="Gemini analysiert die Bilder, GPT verfeinert die Berichtstexte.")
+                            st.checkbox("Berichtstexte zusätzlich mit GPT-5.2 verfeinern (Gemini 3.0 Pro + GPT-5.2)", value=False, key="use_gpt_refinement", help="Gemini 3.0 Pro analysiert die Bilder, GPT-5.2 verfeinert die Berichtstexte.")
                         if st.button("Analyse starten", type="primary", use_container_width=True):
                             with st.spinner("Bilder werden verarbeitet..."):
                                 try:
@@ -843,7 +843,7 @@ elif st.session_state.current_page == 'safesite':
                         st.info("💡 Bitte versuchen Sie es erneut oder wählen Sie andere Dateien aus.")
 
         elif st.session_state.app_step == 'screen_b':
-            analysis_label = "🕵️‍♂️ KI-Analyse (Gemini 3.0 + GPT)" if st.session_state.get("analysis_used_gpt") else "🕵️‍♂️ KI-Analyse (Gemini 3.0)"
+            analysis_label = "🕵️‍♂️ KI-Analyse (Gemini 3.0 Pro + GPT-5.2)" if st.session_state.get("analysis_used_gpt") else "🕵️‍♂️ KI-Analyse (Gemini 3.0 Pro)"
             st.subheader(analysis_label)
             if st.session_state.m_type == "video": st.video(st.session_state.m_files[0])
             else: 
@@ -1033,17 +1033,11 @@ Beispiel für eine professionelle Mangelbeschreibung:
 {{"kategorie": "Baugruben und Erdarbeiten", "prioritaet": "Kritisch", "mangel": "An fast allen Baugrubenrändern (besonders im Bereich des noch nicht hinterfüllten Kellers im rechten Bildteil) fehlt der vorgeschriebene Seitenschutz. Es besteht unmittelbare Lebensgefahr durch Absturz in die Grube. Die Böschungen sind steil und mit Schnee bedeckt. Durch Schmelzwasser besteht akute Rutschgefahr.", "verstoss": "Verstoss BauAV Art. 17 - Bei Absturzhöhen über 2m ist ein dreiteiliger Seitenschutz zwingend. Verstoss BauAV Art. 59 - Böschungswinkel zu steil.", "massnahme": "Sofortige Absperrung (mind. 1.5m - 2m Abstand zur Kante) oder Montage eines festen Geländers. Geologen/Geotechniker hinzuziehen. Böschungswinkel kontrollieren. Bei aufgeweichtem Boden Böschung abflachen oder verbauen.", "zeitstempel_sekunden": 0, "bild_index": 0}}
 """
                     
-                    # --- HIER IST DIE SCHLAUE SCHLEIFE ---
-                    # Wir probieren die Modelle der Reihe nach durch.
-                    # Wenn 3.0 nicht geht, nimmt er automatisch 2.0 oder 1.5
-                    model_names = [
-                        'gemini-3-pro-preview', 
-                        'gemini-2.0-flash-exp', 
-                        'gemini-1.5-pro',
-                        'gemini-1.5-flash'
-                    ]
+                    # Nur Gemini 3.0 Pro für die Bild-/Videoanalyse
+                    model_names = ['gemini-3-pro-preview']
                     
                     found_result = False
+                    last_error = None
                     
                     # Progress-Tracker
                     progress_step = 0
@@ -1112,13 +1106,13 @@ Beispiel für eine professionelle Mangelbeschreibung:
                             
                             # Wenn wir hier sind, hat es geklappt!
                             st.session_state.analysis_data = json.loads(clean_json(res.text))
-                            # Optional: Berichtstexte mit GPT verfeinern (Gemini + GPT)
+                            # Optional: Berichtstexte mit GPT-5.2 verfeinern (Gemini 3.0 Pro + GPT-5.2)
                             if OPENAI_AVAILABLE and st.session_state.get("use_gpt_refinement", False):
-                                status_placeholder.info("🔄 GPT verfeinert Berichtstexte...")
+                                status_placeholder.info("🔄 GPT-5.2 verfeinert Berichtstexte...")
                                 try:
                                     st.session_state.analysis_data = refine_analysis_with_gpt(st.session_state.analysis_data)
                                     st.session_state.analysis_used_gpt = True
-                                    status_placeholder.success("✅ Gemini + GPT: Analyse fertig!")
+                                    status_placeholder.success("✅ Gemini 3.0 Pro + GPT-5.2: Analyse fertig!")
                                     time.sleep(0.5)
                                 except Exception:
                                     st.session_state.analysis_used_gpt = False
@@ -1127,15 +1121,19 @@ Beispiel für eine professionelle Mangelbeschreibung:
                             found_result = True
                             break # Schleife beenden, wir haben ein Ergebnis
                         except Exception as e:
+                            last_error = str(e)
                             elapsed = int(time.time() - start_time)
-                            status_placeholder.warning(f"⚠️ Versuche nächstes Modell... ({elapsed}s)")
-                            continue # Fehler beim Modell? Nächstes probieren!
+                            status_placeholder.warning(f"⚠️ Gemini 3.0 Pro: Fehler – ({elapsed}s)")
+                            continue
                     
                     # Aufräumen der Placeholders
                     progress_placeholder.empty()
                     
                     if not found_result:
-                        status_placeholder.error("❌ Alle KI-Modelle sind gerade ausgelastet oder nicht erreichbar. Bitte später versuchen.")
+                        err_detail = f" Letzter Fehler: {last_error}" if last_error else ""
+                        status_placeholder.error("❌ Gemini 3.0 Pro ist nicht erreichbar. Bitte später versuchen." + err_detail)
+                        if last_error:
+                            st.info("💡 **Tipp:** Prüfen Sie in `.streamlit/secrets.toml`, ob `GOOGLE_API_KEY` korrekt ist und die [Gemini API](https://ai.google.dev/) für Ihr Projekt aktiviert ist.")
                     else:
                         status_placeholder.empty()  # Entferne Status-Nachricht
                         st.rerun()
