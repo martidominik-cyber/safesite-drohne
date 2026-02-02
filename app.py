@@ -9,7 +9,11 @@ import time
 from datetime import date
 from PIL import Image, ImageDraw, ImageFont
 import urllib.parse
-import uuid 
+import uuid
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None 
 
 # Word-Modul sicher laden
 try:
@@ -272,6 +276,11 @@ except:
     st.error("⚠️ API Key fehlt in den Secrets!")
     st.stop()
 
+# Optional: OpenAI (GPT) für Berichtsverfeinerung (Gemini + GPT)
+OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "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")
+OPENAI_MODEL = st.secrets.get("OPENAI_MODEL", "gpt-5.2")  # z.B. "gpt-4o", "gpt-4-turbo" oder "gpt-5.2" wenn verfügbar
+OPENAI_AVAILABLE = bool(OPENAI_API_KEY and OPENAI_API_KEY.strip())
+
 # DATEIEN
 LOGO_FILE = "logo.jpg"
 TITELBILD_FILE = "titelbild.png"
@@ -373,6 +382,28 @@ def make_safe_text(text):
     """Entfernt Emojis für das PDF, damit es nicht abstürzt"""
     if text is None: return ""
     return text.encode('latin-1', 'ignore').decode('latin-1')
+
+def refine_analysis_with_gpt(raw_list):
+    """Verfeinert die Gemini-Mängelliste mit GPT für professionellere Berichtstexte (Gemini + GPT)."""
+    if not OPENAI_AVAILABLE or not raw_list or OpenAI is None:
+        return raw_list
+    try:
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        prompt = """Du bist ein erfahrener Schweizer Bau-Sicherheitsprüfer (SiBe). Du erhältst eine JSON-Liste von Mängeln aus einer KI-Bildanalyse (Gemini).
+Deine Aufgabe: Verfeinere NUR die Texte der Felder "mangel", "verstoss" und "massnahme" für den offiziellen Sicherheitsbericht.
+- Inhalt und Bedeutung unverändert lassen, BauAV-Referenzen beibehalten.
+- Formulierung professionell, einheitlich, prägnant; keine Wiederholungen.
+- Gleiche Anzahl Einträge, gleiche Reihenfolge; kategorie, prioritaet, zeitstempel_sekunden, bild_index exakt übernehmen.
+Antworte NUR mit der JSON-Liste, kein anderer Text."""
+        msg = [{"role": "user", "content": prompt + "\n\nEingabe (JSON-Liste):\n" + json.dumps(raw_list, ensure_ascii=False)}]
+        r = client.chat.completions.create(model=OPENAI_MODEL, messages=msg, temperature=0.3)
+        text = (r.choices[0].message.content or "").strip()
+        refined = json.loads(clean_json(text))
+        if isinstance(refined, list) and len(refined) == len(raw_list):
+            return refined
+    except Exception:
+        pass
+    return raw_list
 
 def create_pdf(data, m_type, m_files, projekt, inspektor, status):
     pdf = PDF()
@@ -541,6 +572,7 @@ def create_word(data, m_type, m_files, projekt, inspektor, status):
 # ==========================================
 if 'app_step' not in st.session_state: st.session_state.app_step = 'screen_a'
 if 'analysis_data' not in st.session_state: st.session_state.analysis_data = []
+if 'analysis_used_gpt' not in st.session_state: st.session_state.analysis_used_gpt = False
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'current_page' not in st.session_state: st.session_state.current_page = 'home'
 if 'username' not in st.session_state: st.session_state.username = None
@@ -715,6 +747,8 @@ elif st.session_state.current_page == 'safesite':
                 if vf:
                     try:
                         st.success(f"✅ Video ausgewählt: {vf.name}")
+                        if OPENAI_AVAILABLE:
+                            st.checkbox("Berichtstexte zusätzlich mit GPT verfeinern (Gemini + GPT)", value=False, key="use_gpt_refinement", help="Gemini analysiert die Bilder, GPT verfeinert die Berichtstexte.")
                         if st.button("Analyse starten", type="primary", use_container_width=True):
                             try:
                                 suffix = os.path.splitext(vf.name)[1] if os.path.splitext(vf.name)[1] else '.mp4'
@@ -753,7 +787,8 @@ elif st.session_state.current_page == 'safesite':
                             st.caption(f"📷 {f.name}")
                         if len(pf) > 5:
                             st.caption(f"... und {len(pf) - 5} weitere")
-                        
+                        if OPENAI_AVAILABLE:
+                            st.checkbox("Berichtstexte zusätzlich mit GPT verfeinern (Gemini + GPT)", value=False, key="use_gpt_refinement", help="Gemini analysiert die Bilder, GPT verfeinert die Berichtstexte.")
                         if st.button("Analyse starten", type="primary", use_container_width=True):
                             with st.spinner("Bilder werden verarbeitet..."):
                                 try:
@@ -808,7 +843,8 @@ elif st.session_state.current_page == 'safesite':
                         st.info("💡 Bitte versuchen Sie es erneut oder wählen Sie andere Dateien aus.")
 
         elif st.session_state.app_step == 'screen_b':
-            st.subheader("🕵️‍♂️ KI-Analyse (Gemini 3.0)")
+            analysis_label = "🕵️‍♂️ KI-Analyse (Gemini 3.0 + GPT)" if st.session_state.get("analysis_used_gpt") else "🕵️‍♂️ KI-Analyse (Gemini 3.0)"
+            st.subheader(analysis_label)
             if st.session_state.m_type == "video": st.video(st.session_state.m_files[0])
             else: 
                 cols = st.columns(3)
@@ -1076,6 +1112,18 @@ Beispiel für eine professionelle Mangelbeschreibung:
                             
                             # Wenn wir hier sind, hat es geklappt!
                             st.session_state.analysis_data = json.loads(clean_json(res.text))
+                            # Optional: Berichtstexte mit GPT verfeinern (Gemini + GPT)
+                            if OPENAI_AVAILABLE and st.session_state.get("use_gpt_refinement", False):
+                                status_placeholder.info("🔄 GPT verfeinert Berichtstexte...")
+                                try:
+                                    st.session_state.analysis_data = refine_analysis_with_gpt(st.session_state.analysis_data)
+                                    st.session_state.analysis_used_gpt = True
+                                    status_placeholder.success("✅ Gemini + GPT: Analyse fertig!")
+                                    time.sleep(0.5)
+                                except Exception:
+                                    st.session_state.analysis_used_gpt = False
+                            else:
+                                st.session_state.analysis_used_gpt = False
                             found_result = True
                             break # Schleife beenden, wir haben ein Ergebnis
                         except Exception as e:
@@ -1233,6 +1281,7 @@ Beispiel für eine professionelle Mangelbeschreibung:
             if st.button("Neuer Auftrag"):
                 st.session_state.app_step = 'screen_a'
                 st.session_state.analysis_data = []
+                st.session_state.analysis_used_gpt = False
                 # Session State für Berichte zurücksetzen
                 if 'pdf_file_path' in st.session_state:
                     del st.session_state.pdf_file_path
