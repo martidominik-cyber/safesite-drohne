@@ -277,8 +277,8 @@ except:
     st.stop()
 
 # Optional: OpenAI (GPT) für Berichtsverfeinerung (Gemini + GPT)
-OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "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")
-OPENAI_MODEL = st.secrets.get("OPENAI_MODEL", "gpt-5.2")  # z.B. "gpt-4o", "gpt-4-turbo" oder "gpt-5.2" wenn verfügbar
+OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "")
+OPENAI_MODEL = st.secrets.get("OPENAI_MODEL", "gpt-4o")  # z.B. "gpt-4o", "gpt-4-turbo", "gpt-5.2"
 OPENAI_AVAILABLE = bool(OPENAI_API_KEY and OPENAI_API_KEY.strip())
 
 # DATEIEN
