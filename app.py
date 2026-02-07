@@ -1,4 +1,4 @@
-import streamlit as st
+   import streamlit as st
 import google.generativeai as genai
 import cv2
 import tempfile
@@ -9,11 +9,7 @@ import time
 from datetime import date
 from PIL import Image, ImageDraw, ImageFont
 import urllib.parse
-import uuid
-try:
-    from openai import OpenAI
-except ImportError:
-    OpenAI = None 
+import uuid 
 
 # Word-Modul sicher laden
 try:
@@ -276,11 +272,6 @@ except:
     st.error("⚠️ API Key fehlt in den Secrets!")
     st.stop()
 
-# Optional: OpenAI (GPT) für Berichtsverfeinerung (Gemini + GPT)
-OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "")
-OPENAI_MODEL = st.secrets.get("OPENAI_MODEL", "gpt-5.2")  # Nur GPT-5.2 für Berichtsverfeinerung
-OPENAI_AVAILABLE = bool(OPENAI_API_KEY and OPENAI_API_KEY.strip())
-
 # DATEIEN
 LOGO_FILE = "logo.jpg"
 TITELBILD_FILE = "titelbild.png"
@@ -382,28 +373,6 @@ def make_safe_text(text):
     """Entfernt Emojis für das PDF, damit es nicht abstürzt"""
     if text is None: return ""
     return text.encode('latin-1', 'ignore').decode('latin-1')
-
-def refine_analysis_with_gpt(raw_list):
-    """Verfeinert die Gemini-3.0-Pro-Mängelliste mit GPT-5.2 für professionellere Berichtstexte."""
-    if not OPENAI_AVAILABLE or not raw_list or OpenAI is None:
-        return raw_list
-    try:
-        client = OpenAI(api_key=OPENAI_API_KEY)
-        prompt = """Du bist ein erfahrener Schweizer Bau-Sicherheitsprüfer (SiBe). Du erhältst eine JSON-Liste von Mängeln aus einer KI-Bildanalyse (Gemini).
-Deine Aufgabe: Verfeinere NUR die Texte der Felder "mangel", "verstoss" und "massnahme" für den offiziellen Sicherheitsbericht.
-- Inhalt und Bedeutung unverändert lassen, BauAV-Referenzen beibehalten.
-- Formulierung professionell, einheitlich, prägnant; keine Wiederholungen.
-- Gleiche Anzahl Einträge, gleiche Reihenfolge; kategorie, prioritaet, zeitstempel_sekunden, bild_index exakt übernehmen.
-Antworte NUR mit der JSON-Liste, kein anderer Text."""
-        msg = [{"role": "user", "content": prompt + "\n\nEingabe (JSON-Liste):\n" + json.dumps(raw_list, ensure_ascii=False)}]
-        r = client.chat.completions.create(model=OPENAI_MODEL, messages=msg, temperature=0.3)
-        text = (r.choices[0].message.content or "").strip()
-        refined = json.loads(clean_json(text))
-        if isinstance(refined, list) and len(refined) == len(raw_list):
-            return refined
-    except Exception:
-        pass
-    return raw_list
 
 def create_pdf(data, m_type, m_files, projekt, inspektor, status):
     pdf = PDF()
@@ -572,7 +541,6 @@ def create_word(data, m_type, m_files, projekt, inspektor, status):
 # ==========================================
 if 'app_step' not in st.session_state: st.session_state.app_step = 'screen_a'
 if 'analysis_data' not in st.session_state: st.session_state.analysis_data = []
-if 'analysis_used_gpt' not in st.session_state: st.session_state.analysis_used_gpt = False
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'current_page' not in st.session_state: st.session_state.current_page = 'home'
 if 'username' not in st.session_state: st.session_state.username = None
@@ -747,8 +715,6 @@ elif st.session_state.current_page == 'safesite':
                 if vf:
                     try:
                         st.success(f"✅ Video ausgewählt: {vf.name}")
-                        if OPENAI_AVAILABLE:
-                            st.checkbox("Berichtstexte zusätzlich mit GPT-5.2 verfeinern (Gemini 3.0 Pro + GPT-5.2)", value=False, key="use_gpt_refinement", help="Gemini 3.0 Pro analysiert die Bilder, GPT-5.2 verfeinert die Berichtstexte.")
                         if st.button("Analyse starten", type="primary", use_container_width=True):
                             try:
                                 suffix = os.path.splitext(vf.name)[1] if os.path.splitext(vf.name)[1] else '.mp4'
@@ -787,8 +753,7 @@ elif st.session_state.current_page == 'safesite':
                             st.caption(f"📷 {f.name}")
                         if len(pf) > 5:
                             st.caption(f"... und {len(pf) - 5} weitere")
-                        if OPENAI_AVAILABLE:
-                            st.checkbox("Berichtstexte zusätzlich mit GPT-5.2 verfeinern (Gemini 3.0 Pro + GPT-5.2)", value=False, key="use_gpt_refinement", help="Gemini 3.0 Pro analysiert die Bilder, GPT-5.2 verfeinert die Berichtstexte.")
+                        
                         if st.button("Analyse starten", type="primary", use_container_width=True):
                             with st.spinner("Bilder werden verarbeitet..."):
                                 try:
@@ -843,8 +808,7 @@ elif st.session_state.current_page == 'safesite':
                         st.info("💡 Bitte versuchen Sie es erneut oder wählen Sie andere Dateien aus.")
 
         elif st.session_state.app_step == 'screen_b':
-            analysis_label = "🕵️‍♂️ KI-Analyse (Gemini 3.0 Pro + GPT-5.2)" if st.session_state.get("analysis_used_gpt") else "🕵️‍♂️ KI-Analyse (Gemini 3.0 Pro)"
-            st.subheader(analysis_label)
+            st.subheader("🕵️‍♂️ KI-Analyse (Gemini 3.0)")
             if st.session_state.m_type == "video": st.video(st.session_state.m_files[0])
             else: 
                 cols = st.columns(3)
@@ -1033,11 +997,17 @@ Beispiel für eine professionelle Mangelbeschreibung:
 {{"kategorie": "Baugruben und Erdarbeiten", "prioritaet": "Kritisch", "mangel": "An fast allen Baugrubenrändern (besonders im Bereich des noch nicht hinterfüllten Kellers im rechten Bildteil) fehlt der vorgeschriebene Seitenschutz. Es besteht unmittelbare Lebensgefahr durch Absturz in die Grube. Die Böschungen sind steil und mit Schnee bedeckt. Durch Schmelzwasser besteht akute Rutschgefahr.", "verstoss": "Verstoss BauAV Art. 17 - Bei Absturzhöhen über 2m ist ein dreiteiliger Seitenschutz zwingend. Verstoss BauAV Art. 59 - Böschungswinkel zu steil.", "massnahme": "Sofortige Absperrung (mind. 1.5m - 2m Abstand zur Kante) oder Montage eines festen Geländers. Geologen/Geotechniker hinzuziehen. Böschungswinkel kontrollieren. Bei aufgeweichtem Boden Böschung abflachen oder verbauen.", "zeitstempel_sekunden": 0, "bild_index": 0}}
 """
                     
-                    # Nur Gemini 3.0 Pro für die Bild-/Videoanalyse
-                    model_names = ['gemini-3-pro-preview']
+                    # --- HIER IST DIE SCHLAUE SCHLEIFE ---
+                    # Wir probieren die Modelle der Reihe nach durch.
+                    # Wenn 3.0 nicht geht, nimmt er automatisch 2.0 oder 1.5
+                    model_names = [
+                        'gemini-3-pro-preview', 
+                        'gemini-2.0-flash-exp', 
+                        'gemini-1.5-pro',
+                        'gemini-1.5-flash'
+                    ]
                     
                     found_result = False
-                    last_error = None
                     
                     # Progress-Tracker
                     progress_step = 0
@@ -1106,34 +1076,18 @@ Beispiel für eine professionelle Mangelbeschreibung:
                             
                             # Wenn wir hier sind, hat es geklappt!
                             st.session_state.analysis_data = json.loads(clean_json(res.text))
-                            # Optional: Berichtstexte mit GPT-5.2 verfeinern (Gemini 3.0 Pro + GPT-5.2)
-                            if OPENAI_AVAILABLE and st.session_state.get("use_gpt_refinement", False):
-                                status_placeholder.info("🔄 GPT-5.2 verfeinert Berichtstexte...")
-                                try:
-                                    st.session_state.analysis_data = refine_analysis_with_gpt(st.session_state.analysis_data)
-                                    st.session_state.analysis_used_gpt = True
-                                    status_placeholder.success("✅ Gemini 3.0 Pro + GPT-5.2: Analyse fertig!")
-                                    time.sleep(0.5)
-                                except Exception:
-                                    st.session_state.analysis_used_gpt = False
-                            else:
-                                st.session_state.analysis_used_gpt = False
                             found_result = True
                             break # Schleife beenden, wir haben ein Ergebnis
                         except Exception as e:
-                            last_error = str(e)
                             elapsed = int(time.time() - start_time)
-                            status_placeholder.warning(f"⚠️ Gemini 3.0 Pro: Fehler – ({elapsed}s)")
-                            continue
+                            status_placeholder.warning(f"⚠️ Versuche nächstes Modell... ({elapsed}s)")
+                            continue # Fehler beim Modell? Nächstes probieren!
                     
                     # Aufräumen der Placeholders
                     progress_placeholder.empty()
                     
                     if not found_result:
-                        err_detail = f" Letzter Fehler: {last_error}" if last_error else ""
-                        status_placeholder.error("❌ Gemini 3.0 Pro ist nicht erreichbar. Bitte später versuchen." + err_detail)
-                        if last_error:
-                            st.info("💡 **Tipp:** Prüfen Sie in `.streamlit/secrets.toml`, ob `GOOGLE_API_KEY` korrekt ist und die [Gemini API](https://ai.google.dev/) für Ihr Projekt aktiviert ist.")
+                        status_placeholder.error("❌ Alle KI-Modelle sind gerade ausgelastet oder nicht erreichbar. Bitte später versuchen.")
                     else:
                         status_placeholder.empty()  # Entferne Status-Nachricht
                         st.rerun()
@@ -1279,7 +1233,6 @@ Beispiel für eine professionelle Mangelbeschreibung:
             if st.button("Neuer Auftrag"):
                 st.session_state.app_step = 'screen_a'
                 st.session_state.analysis_data = []
-                st.session_state.analysis_used_gpt = False
                 # Session State für Berichte zurücksetzen
                 if 'pdf_file_path' in st.session_state:
                     del st.session_state.pdf_file_path
