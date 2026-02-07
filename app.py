@@ -34,8 +34,35 @@ st.markdown(f"""
 <style>
     .stAppDeployButton {{display: none;}}
     footer {{visibility: hidden;}}
-    [data-testid="stSidebarCollapsedControl"] {{color: #FF6600 !important;}}
-    h1, h2, h3 {{ color: #FF6600 !important; }}
+    [data-testid="stSidebarCollapsedControl"] {{color: #e77d17 !important;}}
+    
+    /* Global Background */
+    .stApp {{
+        background-color: #1f4767;
+    }}
+    
+    /* Global Text Color */
+    h1, h2, h3, h4, h5, h6, p, div, span, label, li, a, strong {{
+        color: #e77d17 !important;
+    }}
+    
+    /* Improve input visibility */
+    .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {{
+        color: #e77d17 !important;
+        background-color: #15334d !important;
+        border-color: #e77d17 !important;
+    }}
+    
+    /* Fix buttons to match theme or stay visible */
+    button[kind="primary"] {{
+        background-color: #e77d17 !important;
+        color: #1f4767 !important;
+        border: none;
+    }}
+    button[kind="secondary"] {{
+        border-color: #e77d17 !important;
+        color: #e77d17 !important;
+    }}
 </style>
 <link rel="apple-touch-icon" href="{LOGO_URL_GITHUB}">
 """, unsafe_allow_html=True)
