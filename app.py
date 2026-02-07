@@ -367,7 +367,7 @@ class PDF(FPDF):
         if os.path.exists(LOGO_FILE):
             try: self.image(LOGO_FILE, 160, 8, 40)
             except: pass
-        self.ln(5)
+        self.ln(30)
 
 def make_safe_text(text):
     """Entfernt Emojis für das PDF, damit es nicht abstürzt"""
