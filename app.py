@@ -920,7 +920,8 @@ elif st.session_state.current_page == 'safesite':
                 
                 try:
                     client = genai.Client(
-                        api_key=API_KEY
+                        api_key=API_KEY,
+                        http_options={'timeout': 120000}
                     )
                     
                     with st.spinner("Analysiere Daten..."):
