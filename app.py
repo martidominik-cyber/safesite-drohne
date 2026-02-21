@@ -2032,6 +2032,9 @@ elif st.session_state.current_page == 'kunden':
                                 st.session_state[f"edit_credits_{kunde_id}"] = True
                                 st.rerun()
                         with col3:
+                            if st.button("✏️ Bearbeiten", key=f"edit_btn_{kunde_id}"):
+                                st.session_state[f"show_edit_{kunde_id}"] = True
+                                st.rerun()
                             if st.button("🗑️ Löschen", key=f"delete_{kunde_id}"):
                                 # Kunde aus customers.json löschen
                                 del customers[kunde_id]
@@ -2045,6 +2048,78 @@ elif st.session_state.current_page == 'kunden':
                                 st.success("Kunde gelöscht!")
                                 st.rerun()
                         
+                        # Bearbeiten Formular
+                        if st.session_state.get(f"show_edit_{kunde_id}", False):
+                            st.divider()
+                            with st.form(f"form_edit_{kunde_id}"):
+                                st.markdown("**✏️ Kunde bearbeiten**")
+                                edit_name = st.text_input("Name *", value=kunde_data.get('name', ''))
+                                edit_firma = st.text_input("Firma", value=kunde_data.get('firma', ''))
+                                edit_email = st.text_input("Email", value=email)
+                                edit_username = st.text_input("Benutzername", value=username)
+                                edit_tel = st.text_input("Telefon", value=kunde_data.get('telefon', ''))
+                                edit_adresse = st.text_area("Adresse", value=kunde_data.get('adresse', ''))
+                                
+                                col_a, col_b = st.columns(2)
+                                with col_a:
+                                    if st.form_submit_button("✅ Speichern", use_container_width=True):
+                                        if not edit_name:
+                                            st.error("Name ist ein Pflichtfeld!")
+                                        else:
+                                            needs_user_save = False
+                                            
+                                            pwd_to_copy = None
+                                            if email and email in users:
+                                                pwd_to_copy = users[email]
+                                            elif username and username in users:
+                                                pwd_to_copy = users[username]
+                                            
+                                            # Falls Email ändert
+                                            if email and edit_email != email and email in users:
+                                                pwd = users[email]
+                                                del users[email]
+                                                if edit_email:
+                                                    users[edit_email] = pwd
+                                                needs_user_save = True
+                                                if not pwd_to_copy: pwd_to_copy = pwd
+                                                
+                                            # Falls Username ändert
+                                            if username and edit_username != username and username in users:
+                                                pwd = users[username]
+                                                del users[username]
+                                                if edit_username:
+                                                    users[edit_username] = pwd
+                                                needs_user_save = True
+                                                if not pwd_to_copy: pwd_to_copy = pwd
+                                                
+                                            # Neues Email/Username falls vorher nicht gesetzt, aber jetzt schon
+                                            if not username and edit_username and pwd_to_copy:
+                                                users[edit_username] = pwd_to_copy
+                                                needs_user_save = True
+                                            if not email and edit_email and pwd_to_copy:
+                                                users[edit_email] = pwd_to_copy
+                                                needs_user_save = True
+                                                
+                                            if needs_user_save:
+                                                save_users(users)
+                                                
+                                            kunde_data['name'] = edit_name
+                                            kunde_data['firma'] = edit_firma
+                                            kunde_data['email'] = edit_email
+                                            kunde_data['username'] = edit_username
+                                            kunde_data['telefon'] = edit_tel
+                                            kunde_data['adresse'] = edit_adresse
+                                            
+                                            save_customers(customers)
+                                            
+                                            st.session_state[f"show_edit_{kunde_id}"] = False
+                                            st.success("Kunde aktualisiert!")
+                                            st.rerun()
+                                with col_b:
+                                    if st.form_submit_button("❌ Abbrechen", use_container_width=True):
+                                        st.session_state[f"show_edit_{kunde_id}"] = False
+                                        st.rerun()
+
                         # Credits bearbeiten Formular
                         if st.session_state.get(f"edit_credits_{kunde_id}", False):
                             st.divider()
