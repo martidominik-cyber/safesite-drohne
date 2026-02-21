@@ -1,4 +1,4 @@
-   import streamlit as st
+import streamlit as st
 import google.generativeai as genai
 import cv2
 import tempfile
@@ -44,6 +44,71 @@ st.markdown(f"""
 USER_DB_FILE = "users.json"
 CUSTOMERS_DB_FILE = "customers.json"
 GEFAHRSOFF_DB_FILE = "gefahrstoffe.json"
+NOTFALL_DB_FILE = "notfall.json"
+
+def migrate_rich_users():
+    """Migrates rich user definitions in users.json to customers.json and flattens users.json"""
+    if not os.path.exists(USER_DB_FILE):
+        return
+    try:
+        with open(USER_DB_FILE, "r") as f: 
+            users_in = json.load(f)
+    except:
+        return
+        
+    needs_migration = False
+    if isinstance(users_in, dict):
+        for k, v in users_in.items():
+            if isinstance(v, dict):
+                needs_migration = True
+                break
+                
+    if not needs_migration:
+        return
+        
+    # Lade existierende Kunden (um Duplikate zu vermeiden)
+    customers = {}
+    if os.path.exists(CUSTOMERS_DB_FILE):
+        try:
+            with open(CUSTOMERS_DB_FILE, "r") as f:
+                customers = json.load(f)
+        except:
+            pass
+            
+    existing_emails = {c.get('email', '') for c in customers.values() if isinstance(c, dict)}
+    existing_usernames = {c.get('username', '') for c in customers.values() if isinstance(c, dict)}
+    
+    new_users = {}
+    
+    for username, data in users_in.items():
+        if isinstance(data, dict):
+            pwd = data.get("password", "1234")
+            new_users[username] = pwd
+            
+            email = data.get("email", f"{username}@example.com")
+            
+            # Create a customer entry if it's not the admin, and not already in customers.json
+            if username != "admin" and email not in existing_emails and username not in existing_usernames:
+                kunde_id = str(uuid.uuid4())[:8]
+                customers[kunde_id] = {
+                    "name": data.get("name", username),
+                    "firma": data.get("firma", ""),
+                    "email": email,
+                    "telefon": data.get("telefon", ""),
+                    "adresse": data.get("adresse", ""),
+                    "credits": data.get("credits", 0),
+                    "username": username,
+                    "erstellt_am": date.today().strftime('%d.%m.%Y')
+                }
+        else:
+            new_users[username] = data
+            
+    with open(USER_DB_FILE, "w") as f: json.dump(new_users, f, indent=2)
+    with open(CUSTOMERS_DB_FILE, "w") as f: json.dump(customers, f, indent=2)
+
+if 'migration_done' not in st.session_state:
+    migrate_rich_users()
+    st.session_state.migration_done = True
 
 def load_users():
     if not os.path.exists(USER_DB_FILE):
@@ -60,6 +125,24 @@ def load_customers():
 
 def save_customers(customers):
     with open(CUSTOMERS_DB_FILE, "w") as f: json.dump(customers, f, indent=2)
+
+def load_notfall():
+    if not os.path.exists(NOTFALL_DB_FILE):
+        # Initialisiere Standard-Notfallnummern
+        standards = {
+            "std_144": {"name": "144 - Sanitätsnotruf", "desc": "Wichtigste Nummer. Bei allen medizinischen Notfällen:\n- Unfall\n- Herzinfarkt\n- Sturz", "tel": "144", "icon": "🚑", "owner": "all"},
+            "std_1414": {"name": "1414 - Rega (Luftrettung)", "desc": "Essenziell in der Schweiz. Bei:\n- Schwer zugänglichem Gelände\n- Kran-Unfällen\n- Wenn Bodenambulanzen zu lange brauchen\n\n*Hinweis: Im Wallis wird über die 144 disponiert, aber die 1414 ist national bekannt.*", "tel": "1414", "icon": "🚁", "owner": "all"},
+            "std_118": {"name": "118 - Feuerwehr", "desc": "Nicht nur bei Feuer! Auch bei:\n- Personenrettung (aus Tiefen/Höhen)\n- Chemieunfällen (Öl/Gefahrgut)\n- Verschüttungen", "tel": "118", "icon": "🚒", "owner": "all"},
+            "std_145": {"name": "145 - Tox Info Suisse", "desc": "Bei Vergiftungen oder Unfällen mit Chemikalien/Baustoffen:\n- Verschlucken\n- Einatmen\n- Augenkontakt", "tel": "145", "icon": "☠️", "owner": "all"},
+            "std_117": {"name": "117 - Polizei", "desc": "Bei:\n- Verkehrsunfällen vor der Baustelle\n- Einbruch\n- Gewaltandrohung", "tel": "117", "icon": "👮", "owner": "all"},
+            "std_112": {"name": "112 - Euro-Notruf", "desc": "Funktioniert oft auch dann, wenn das eigene Handynetz kein Signal hat\n*(Roaming über Fremdnetze)*", "tel": "112", "icon": "🌍", "owner": "all"}
+        }
+        with open(NOTFALL_DB_FILE, "w") as f: json.dump(standards, f, indent=2)
+        return standards
+    with open(NOTFALL_DB_FILE, "r") as f: return json.load(f)
+
+def save_notfall(notfall_data):
+    with open(NOTFALL_DB_FILE, "w") as f: json.dump(notfall_data, f, indent=2)
 
 def load_gefahrstoffe():
     if not os.path.exists(GEFAHRSOFF_DB_FILE):
@@ -367,7 +450,7 @@ class PDF(FPDF):
         if os.path.exists(LOGO_FILE):
             try: self.image(LOGO_FILE, 160, 8, 40)
             except: pass
-        self.ln(5)
+        self.ln(30)
 
 def make_safe_text(text):
     """Entfernt Emojis für das PDF, damit es nicht abstürzt"""
@@ -553,8 +636,13 @@ with st.sidebar:
         
     st.title("Menü")
     page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV", "🚨 Notfallmanagement", "🧪 Gefahrstoffkataster", "🌤️ Wetter-Warnungen"]
-    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'notfall':4, 'gefahrstoff':5, 'wetter':6, 'kunden':7}
+    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'notfall':4, 'gefahrstoff':5, 'wetter':6}
     
+    # Mein Profil hinzufügen, wenn eingeloggt (egal ob Admin oder User)
+    if st.session_state.logged_in:
+        page_options.append("👤 Mein Profil")
+        p_map['profil'] = len(page_options) - 1
+        
     # Admin-Menüpunkt hinzufügen, wenn Admin eingeloggt
     if is_admin():
         page_options.append("👥 Kundenverwaltung")
@@ -575,6 +663,7 @@ with st.sidebar:
     elif page == "🚨 Notfallmanagement": st.session_state.current_page = 'notfall'
     elif page == "🧪 Gefahrstoffkataster": st.session_state.current_page = 'gefahrstoff'
     elif page == "🌤️ Wetter-Warnungen": st.session_state.current_page = 'wetter'
+    elif page == "👤 Mein Profil": st.session_state.current_page = 'profil'
     elif page == "👥 Kundenverwaltung": st.session_state.current_page = 'kunden'
     
     st.divider()
@@ -808,7 +897,7 @@ elif st.session_state.current_page == 'safesite':
                         st.info("💡 Bitte versuchen Sie es erneut oder wählen Sie andere Dateien aus.")
 
         elif st.session_state.app_step == 'screen_b':
-            st.subheader("🕵️‍♂️ KI-Analyse (Gemini 3.0)")
+            st.subheader("🕵️‍♂️ KI-Analyse")
             if st.session_state.m_type == "video": st.video(st.session_state.m_files[0])
             else: 
                 cols = st.columns(3)
@@ -1114,7 +1203,7 @@ Beispiel für eine professionelle Mangelbeschreibung:
                 st.markdown("### 📝 Projektdaten für Bericht")
                 c_a, c_b = st.columns(2)
                 with c_a:
-                    proj = st.text_input("Projektname", value="Überbauung 'Luegisland', Wohlen AG")
+                    proj = st.text_input("Projektname", value="Baustelle, Ort")
                     insp = st.text_input("Inspektor Name", value="Dominik Marti")
                 with c_b:
                     stat = st.selectbox("Status", ["⚠️ Massnahmen erforderlich", "✅ In Ordnung", "🛑 Kritisch - Baustopp"])
@@ -1389,92 +1478,103 @@ elif st.session_state.current_page == 'notfall':
     st.markdown("**Wenn etwas passiert, zählt jede Sekunde.**")
     st.markdown("---")
     
-    st.subheader("📞 Notfallnummern")
-    st.markdown("**Wählen Sie die richtige Nummer für Ihren Notfall:**")
-    st.markdown("")
+    notfall_data = load_notfall()
     
-    # Notfallnummern in Spalten anzeigen mit Containern
-    col1, col2 = st.columns(2)
+    tab1, tab2 = st.tabs(["📞 Notfallnummern", "➕ Neuen Notfallkontakt hinzufügen"])
     
-    with col1:
-        with st.container(border=True):
-            st.markdown("### 🚑 144 - Sanitätsnotruf")
-            st.markdown("**Wichtigste Nummer. Bei allen medizinischen Notfällen:**")
-            st.markdown("- Unfall")
-            st.markdown("- Herzinfarkt")
-            st.markdown("- Sturz")
-            st.markdown(f"[📞 144 anrufen](tel:144)", unsafe_allow_html=True)
-        
+    with tab1:
+        st.subheader("Ihre Notfallkontakte")
+        st.markdown("**Wählen Sie die richtige Nummer für Ihren Notfall:**")
         st.markdown("")
         
-        with st.container(border=True):
-            st.markdown("### 🚁 1414 - Rega (Luftrettung)")
-            st.markdown("**Essenziell in der Schweiz. Bei:**")
-            st.markdown("- Schwer zugänglichem Gelände")
-            st.markdown("- Kran-Unfällen")
-            st.markdown("- Wenn Bodenambulanzen zu lange brauchen")
-            st.caption("ℹ️ *Hinweis: Im Wallis wird über die 144 disponiert, aber die 1414 ist national bekannt.*")
-            st.markdown(f"[📞 1414 anrufen](tel:1414)", unsafe_allow_html=True)
-        
-        st.markdown("")
-        
-        with st.container(border=True):
-            st.markdown("### 🚒 118 - Feuerwehr")
-            st.markdown("**Nicht nur bei Feuer! Auch bei:**")
-            st.markdown("- Personenrettung (aus Tiefen/Höhen)")
-            st.markdown("- Chemieunfällen (Öl/Gefahrgut)")
-            st.markdown("- Verschüttungen")
-            st.markdown(f"[📞 118 anrufen](tel:118)", unsafe_allow_html=True)
-    
-    with col2:
-        with st.container(border=True):
-            st.markdown("### ☠️ 145 - Tox Info Suisse")
-            st.markdown("**Bei Vergiftungen oder Unfällen mit Chemikalien/Baustoffen:**")
-            st.markdown("- Verschlucken")
-            st.markdown("- Einatmen")
-            st.markdown("- Augenkontakt")
-            st.markdown(f"[📞 145 anrufen](tel:145)", unsafe_allow_html=True)
-        
-        st.markdown("")
-        
-        with st.container(border=True):
-            st.markdown("### 👮 117 - Polizei")
-            st.markdown("**Bei:**")
-            st.markdown("- Verkehrsunfällen vor der Baustelle")
-            st.markdown("- Einbruch")
-            st.markdown("- Gewaltandrohung")
-            st.markdown(f"[📞 117 anrufen](tel:117)", unsafe_allow_html=True)
-        
-        st.markdown("")
+        # Filtere Kontakte nach Sichtbarkeit (Jeder sieht "all" und seine eigenen)
+        # WICHTIG: Admin sieht hier auch nur "all" und seine EIGENEN, nicht die von Kunden!
+        visible_contacts = {}
+        for k_id, k_data in notfall_data.items():
+            owner = k_data.get('owner', 'all')
+            if owner == 'all' or (st.session_state.logged_in and owner == st.session_state.username):
+                visible_contacts[k_id] = k_data
+                
+        if not visible_contacts:
+            st.info("Keine Notfallkontakte gefunden.")
+        else:
+            # Kontakte in 2 Spalten anzeigen
+            cols = st.columns(2)
+            col_idx = 0
+            
+            for k_id, k_data in visible_contacts.items():
+                with cols[col_idx % 2]:
+                    with st.container(border=True):
+                        # Kopfbereich mit Löschen-Button für eigene Kontakte
+                        c1, c2 = st.columns([4, 1])
+                        with c1:
+                            st.markdown(f"### {k_data.get('icon', '📞')} {k_data.get('name', 'Unbekannt')}")
+                        with c2:
+                            # Darf nur gelöscht werden, wenn es der eigene ist (Standard 'all' darf niemand löschen)
+                            if st.session_state.logged_in and k_data.get('owner') == st.session_state.username:
+                                if st.button("🗑️", key=f"del_notfall_{k_id}", help="Kontakt löschen"):
+                                    del notfall_data[k_id]
+                                    save_notfall(notfall_data)
+                                    st.success("Gelöscht!")
+                                    st.rerun()
+                        
+                        st.markdown(k_data.get('desc', ''))
+                        st.markdown(f"[📞 {k_data.get('tel', '')} anrufen](tel:{k_data.get('tel', '')})", unsafe_allow_html=True)
+                    st.markdown("")
+                col_idx += 1
+
+        st.markdown("---")
+        st.subheader("❓ Die \"W-Fragen\"-Hilfe")
+        st.info("💡 **Viele Leute stehen unter Schock. Ein kurzes Skript auf dem Bildschirm hilft:**")
         
         with st.container(border=True):
-            st.markdown("### 🌍 112 - Euro-Notruf")
-            st.markdown("**Funktioniert oft auch dann, wenn das eigene Handynetz kein Signal hat**")
-            st.caption("*(Roaming über Fremdnetze)*")
-            st.markdown(f"[📞 112 anrufen](tel:112)", unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.subheader("❓ Die \"W-Fragen\"-Hilfe")
-    st.info("💡 **Viele Leute stehen unter Schock. Ein kurzes Skript auf dem Bildschirm hilft:**")
-    
-    # W-Fragen in einem Streamlit Container
-    with st.container(border=True):
-        st.markdown("#### Beantworten Sie diese Fragen am Telefon:")
-        st.markdown("")
-        st.markdown("**Wer ruft an?**")
-        st.caption("Ihr Name und Ihre Funktion")
-        st.markdown("")
-        st.markdown("**Wo ist es passiert?**")
-        st.caption("Genauer Standort, Adresse, Baustelle")
-        st.markdown("")
-        st.markdown("**Was ist passiert?**")
-        st.caption("Art des Unfalls, Verletzungen")
-        st.markdown("")
-        st.markdown("**Wie viele Verletzte?**")
-        st.caption("Anzahl der betroffenen Personen")
-    
-    st.markdown("---")
-    st.warning("⚠️ **Wichtig:** Bleiben Sie ruhig, sprechen Sie langsam und deutlich. Legen Sie nicht auf, bis die Rettungsleitstelle alle Informationen hat.")
+            st.markdown("#### Beantworten Sie diese Fragen am Telefon:")
+            st.markdown("")
+            st.markdown("**Wer ruft an?**")
+            st.caption("Ihr Name und Ihre Funktion")
+            st.markdown("")
+            st.markdown("**Wo ist es passiert?**")
+            st.caption("Genauer Standort, Adresse, Baustelle")
+            st.markdown("")
+            st.markdown("**Was ist passiert?**")
+            st.caption("Art des Unfalls, Verletzungen")
+            st.markdown("")
+            st.markdown("**Wie viele Verletzte?**")
+            st.caption("Anzahl der betroffenen Personen")
+        
+        st.markdown("---")
+        st.warning("⚠️ **Wichtig:** Bleiben Sie ruhig, sprechen Sie langsam und deutlich. Legen Sie nicht auf, bis die Rettungsleitstelle alle Informationen hat.")
+
+    with tab2:
+        if not st.session_state.logged_in:
+            st.warning("⚠️ Bitte loggen Sie sich ein, um eigene Notfallkontakte hinzuzufügen.")
+        else:
+            st.subheader("Eigenen Notfallkontakt hinterlegen")
+            st.info("Diese Kontakte sind **nur für Sie** sichtbar. Andere Kunden und auch Administratoren können diese Einträge nicht sehen.")
+            
+            with st.form("neuer_notfall_kontakt", clear_on_submit=True):
+                n_name = st.text_input("Name des Kontakts *", placeholder="z.B. Bauleiter Herr Müller, Firmenarzt, etc.")
+                n_tel = st.text_input("Telefonnummer *", placeholder="z.B. 079 123 45 67")
+                n_desc = st.text_area("Beschreibung / Wann anrufen?", placeholder="z.B. Bei Fragen zur Statik")
+                n_icon = st.selectbox("Icon", ["📞", "👷", "👨‍⚕️", "🏥", "🏢", "🚨", "📱", "☎️", "🚑"])
+                
+                submitted = st.form_submit_button("Kontakt hinzufügen", use_container_width=True, type="primary")
+                
+                if submitted:
+                    if not n_name or not n_tel:
+                        st.error("❌ Bitte Name und Telefonnummer ausfüllen!")
+                    else:
+                        new_id = str(uuid.uuid4())
+                        notfall_data[new_id] = {
+                            "name": n_name,
+                            "tel": n_tel,
+                            "desc": n_desc,
+                            "icon": n_icon,
+                            "owner": st.session_state.username
+                        }
+                        save_notfall(notfall_data)
+                        st.success(f"✅ Notfallkontakt '{n_name}' erfolgreich hinzugefügt!")
+                        st.rerun()
 
 elif st.session_state.current_page == 'gefahrstoff':
     st.header("🧪 Gefahrstoffkataster")
@@ -1531,6 +1631,11 @@ elif st.session_state.current_page == 'gefahrstoff':
         else:
             displayed_count = 0
             for gefahrstoff_id, gefahrstoff_data in gefahrstoffe.items():
+                # Sichtbarkeitsprüfung: Admin sieht alles, Kunden sehen "all" (Standard) und ihre eigenen
+                owner = gefahrstoff_data.get('owner', 'all')
+                if not is_admin() and owner != 'all' and owner != st.session_state.username:
+                    continue
+
                 # Suchfilter anwenden (erweitert)
                 if search_query:
                     search_lower = search_query.lower()
@@ -1560,7 +1665,8 @@ elif st.session_state.current_page == 'gefahrstoff':
                     with col_header1:
                         st.markdown(f"### {gefahrstoff_data.get('handelsbezeichnung', gefahrstoff_data.get('name', 'Unbekannt'))}")
                     with col_header2:
-                        if is_admin():
+                        can_delete = is_admin() or (st.session_state.logged_in and gefahrstoff_data.get('owner', 'all') == st.session_state.username)
+                        if can_delete:
                             if st.button("🗑️ Löschen", key=f"del_{gefahrstoff_id}", use_container_width=True):
                                 del gefahrstoffe[gefahrstoff_id]
                                 save_gefahrstoffe(gefahrstoffe)
@@ -1642,8 +1748,8 @@ elif st.session_state.current_page == 'gefahrstoff':
                 st.info("💡 **Tipp:** Keine Gefahrstoffe gefunden. Versuchen Sie eine andere Suchanfrage.")
     
     with tab2:
-        if not is_admin():
-            st.warning("⚠️ Nur Administratoren können neue Gefahrstoffe hinzufügen.")
+        if not st.session_state.logged_in:
+            st.warning("⚠️ Bitte loggen Sie sich ein, um eigene Gefahrstoffe hinzuzufügen.")
         else:
             st.subheader("Neuen Gefahrstoff hinzufügen")
             
@@ -1697,10 +1803,119 @@ elif st.session_state.current_page == 'gefahrstoff':
                             "substitution": substitution if substitution else "",
                             "sdb_link": sdb_link if sdb_link else "",
                             "sdb_datei": "",
-                            "erstellt_am": date.today().strftime('%d.%m.%Y')
+                            "erstellt_am": date.today().strftime('%d.%m.%Y'),
+                            "owner": "all" if is_admin() else st.session_state.username
                         }
                         save_gefahrstoffe(gefahrstoffe)
                         st.success(f"✅ Gefahrstoff '{handelsbezeichnung}' erfolgreich hinzugefügt!")
+                        st.rerun()
+
+elif st.session_state.current_page == 'profil':
+    st.header("👤 Mein Profil")
+    st.markdown("Hier können Sie Ihre persönlichen Benutzerdaten anzeigen und bearbeiten.")
+    st.markdown("---")
+    
+    # Hole Userdaten
+    username = st.session_state.username
+    kunde_id, kunde_data = get_customer_by_username_or_email(username)
+    
+    if not kunde_data:
+        st.warning("Keine Kundendaten zu diesem Login gefunden. Bitte kontaktieren Sie den Administrator.")
+    else:
+        # Lade aktuelle Users
+        users = load_users()
+        current_email = kunde_data.get('email', '')
+        current_username = kunde_data.get('username', '')
+        
+        tab_info, tab_edit = st.tabs(["📋 Meine Daten", "✏️ Daten bearbeiten"])
+        
+        with tab_info:
+            with st.container(border=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**Name:** {kunde_data.get('name', '-')}")
+                    st.write(f"**Firma:** {kunde_data.get('firma', '-')}")
+                    st.write(f"**Email:** {current_email}")
+                    st.write(f"**Benutzername:** {current_username if current_username else '-'}")
+                with col2:
+                    st.write(f"**Telefon:** {kunde_data.get('telefon', '-')}")
+                    st.write(f"**Adresse:** {kunde_data.get('adresse', '-')}")
+            
+                st.divider()
+                st.metric("🪙 Verfügbare SafeSite Credits", int(kunde_data.get('credits', 0)))
+                st.caption("Credits können nur vom Administrator aufgeladen werden.")
+        
+        with tab_edit:
+            with st.form("profil_bearbeiten"):
+                st.subheader("Profildaten aktualisieren")
+                edit_name = st.text_input("Name *", value=kunde_data.get('name', ''))
+                edit_firma = st.text_input("Firma", value=kunde_data.get('firma', ''))
+                edit_email = st.text_input("Email *", value=current_email)
+                edit_username = st.text_input("Benutzername", value=current_username)
+                edit_tel = st.text_input("Telefon", value=kunde_data.get('telefon', ''))
+                edit_adresse = st.text_area("Adresse", value=kunde_data.get('adresse', ''))
+                
+                st.info("Hinweis: Wenn Sie Email oder Benutzername ändern, ändert sich auch Ihr Login.")
+                
+                submit_profil = st.form_submit_button("✅ Speichern", type="primary")
+                
+                if submit_profil:
+                    if not edit_name or not edit_email:
+                        st.error("Name und Email sind Pflichtfelder!")
+                    else:
+                        needs_user_save = False
+                        pwd_to_copy = None
+                        
+                        if current_email and current_email in users:
+                            pwd_to_copy = users[current_email]
+                        elif current_username and current_username in users:
+                            pwd_to_copy = users[current_username]
+                            
+                        # Falls Email ändert
+                        if current_email and edit_email != current_email and current_email in users:
+                            pwd = users[current_email]
+                            del users[current_email]
+                            users[edit_email] = pwd
+                            needs_user_save = True
+                            if not pwd_to_copy: pwd_to_copy = pwd
+                            
+                        # Falls Username ändert
+                        if current_username and edit_username != current_username and current_username in users:
+                            pwd = users[current_username]
+                            del users[current_username]
+                            if edit_username:
+                                users[edit_username] = pwd
+                            needs_user_save = True
+                            if not pwd_to_copy: pwd_to_copy = pwd
+                            
+                        # Neues Email/Username falls vorher nicht gesetzt
+                        if not current_username and edit_username and pwd_to_copy:
+                            users[edit_username] = pwd_to_copy
+                            needs_user_save = True
+                        if not current_email and edit_email and pwd_to_copy:
+                            users[edit_email] = pwd_to_copy
+                            needs_user_save = True
+                            
+                        if needs_user_save:
+                            save_users(users)
+                            # Update session state falls der Login-Name der aktuelle war
+                            if st.session_state.username == current_email and edit_email != current_email:
+                                st.session_state.username = edit_email
+                            elif st.session_state.username == current_username and edit_username != current_username:
+                                st.session_state.username = edit_username
+                            
+                        customers = load_customers()
+                        if kunde_id in customers:
+                            customers[kunde_id]['name'] = edit_name
+                            customers[kunde_id]['firma'] = edit_firma
+                            customers[kunde_id]['email'] = edit_email
+                            customers[kunde_id]['username'] = edit_username
+                            customers[kunde_id]['telefon'] = edit_tel
+                            customers[kunde_id]['adresse'] = edit_adresse
+                            save_customers(customers)
+                            
+                        st.success("✅ Profildaten erfolgreich aktualisiert!")
+                        # Trick to refresh without breaking
                         st.rerun()
 
 elif st.session_state.current_page == 'wetter':
@@ -1933,6 +2148,9 @@ elif st.session_state.current_page == 'kunden':
                                 st.session_state[f"edit_credits_{kunde_id}"] = True
                                 st.rerun()
                         with col3:
+                            if st.button("✏️ Bearbeiten", key=f"edit_btn_{kunde_id}"):
+                                st.session_state[f"show_edit_{kunde_id}"] = True
+                                st.rerun()
                             if st.button("🗑️ Löschen", key=f"delete_{kunde_id}"):
                                 # Kunde aus customers.json löschen
                                 del customers[kunde_id]
@@ -1946,6 +2164,78 @@ elif st.session_state.current_page == 'kunden':
                                 st.success("Kunde gelöscht!")
                                 st.rerun()
                         
+                        # Bearbeiten Formular
+                        if st.session_state.get(f"show_edit_{kunde_id}", False):
+                            st.divider()
+                            with st.form(f"form_edit_{kunde_id}"):
+                                st.markdown("**✏️ Kunde bearbeiten**")
+                                edit_name = st.text_input("Name *", value=kunde_data.get('name', ''))
+                                edit_firma = st.text_input("Firma", value=kunde_data.get('firma', ''))
+                                edit_email = st.text_input("Email", value=email)
+                                edit_username = st.text_input("Benutzername", value=username)
+                                edit_tel = st.text_input("Telefon", value=kunde_data.get('telefon', ''))
+                                edit_adresse = st.text_area("Adresse", value=kunde_data.get('adresse', ''))
+                                
+                                col_a, col_b = st.columns(2)
+                                with col_a:
+                                    if st.form_submit_button("✅ Speichern", use_container_width=True):
+                                        if not edit_name:
+                                            st.error("Name ist ein Pflichtfeld!")
+                                        else:
+                                            needs_user_save = False
+                                            
+                                            pwd_to_copy = None
+                                            if email and email in users:
+                                                pwd_to_copy = users[email]
+                                            elif username and username in users:
+                                                pwd_to_copy = users[username]
+                                            
+                                            # Falls Email ändert
+                                            if email and edit_email != email and email in users:
+                                                pwd = users[email]
+                                                del users[email]
+                                                if edit_email:
+                                                    users[edit_email] = pwd
+                                                needs_user_save = True
+                                                if not pwd_to_copy: pwd_to_copy = pwd
+                                                
+                                            # Falls Username ändert
+                                            if username and edit_username != username and username in users:
+                                                pwd = users[username]
+                                                del users[username]
+                                                if edit_username:
+                                                    users[edit_username] = pwd
+                                                needs_user_save = True
+                                                if not pwd_to_copy: pwd_to_copy = pwd
+                                                
+                                            # Neues Email/Username falls vorher nicht gesetzt, aber jetzt schon
+                                            if not username and edit_username and pwd_to_copy:
+                                                users[edit_username] = pwd_to_copy
+                                                needs_user_save = True
+                                            if not email and edit_email and pwd_to_copy:
+                                                users[edit_email] = pwd_to_copy
+                                                needs_user_save = True
+                                                
+                                            if needs_user_save:
+                                                save_users(users)
+                                                
+                                            kunde_data['name'] = edit_name
+                                            kunde_data['firma'] = edit_firma
+                                            kunde_data['email'] = edit_email
+                                            kunde_data['username'] = edit_username
+                                            kunde_data['telefon'] = edit_tel
+                                            kunde_data['adresse'] = edit_adresse
+                                            
+                                            save_customers(customers)
+                                            
+                                            st.session_state[f"show_edit_{kunde_id}"] = False
+                                            st.success("Kunde aktualisiert!")
+                                            st.rerun()
+                                with col_b:
+                                    if st.form_submit_button("❌ Abbrechen", use_container_width=True):
+                                        st.session_state[f"show_edit_{kunde_id}"] = False
+                                        st.rerun()
+
                         # Credits bearbeiten Formular
                         if st.session_state.get(f"edit_credits_{kunde_id}", False):
                             st.divider()
