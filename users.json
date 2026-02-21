@@ -1,6 +1,24 @@
 {
-  "admin": "safesite1234",
-  "Jessi": "replay1995",
-  "dominik": "geheim99",
-  "kunde_ag": "baustelle2026"
+  "admin": {
+    "password": "safesite1234",
+    "role": "admin",
+    "name": "Administrator",
+    "credits": 99999999999
+  },
+  "kunde1": {
+    "password": "123",
+    "role": "user",
+    "name": "Max Muster",
+    "firma": "Musterbau AG",
+    "email": "max@muster.ch",
+    "credits": 5
+  },
+  "kunde2": {
+    "password": "456",
+    "role": "user",
+    "name": "Anna Architekt",
+    "firma": "Immo Plan",
+    "email": "anna@immo.ch",
+    "credits": 10
+  }
 }
