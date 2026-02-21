@@ -1114,7 +1114,7 @@ Beispiel für eine professionelle Mangelbeschreibung:
                 st.markdown("### 📝 Projektdaten für Bericht")
                 c_a, c_b = st.columns(2)
                 with c_a:
-                    proj = st.text_input("Projektname", value="Baustellen-NR, Ort")
+                    proj = st.text_input("Projektname", value="Baustelle, Ort")
                     insp = st.text_input("Inspektor Name", value="Dominik Marti")
                 with c_b:
                     stat = st.selectbox("Status", ["⚠️ Massnahmen erforderlich", "✅ In Ordnung", "🛑 Kritisch - Baustopp"])
@@ -1531,6 +1531,11 @@ elif st.session_state.current_page == 'gefahrstoff':
         else:
             displayed_count = 0
             for gefahrstoff_id, gefahrstoff_data in gefahrstoffe.items():
+                # Sichtbarkeitsprüfung: Admin sieht alles, Kunden sehen "all" (Standard) und ihre eigenen
+                owner = gefahrstoff_data.get('owner', 'all')
+                if not is_admin() and owner != 'all' and owner != st.session_state.username:
+                    continue
+
                 # Suchfilter anwenden (erweitert)
                 if search_query:
                     search_lower = search_query.lower()
@@ -1560,7 +1565,8 @@ elif st.session_state.current_page == 'gefahrstoff':
                     with col_header1:
                         st.markdown(f"### {gefahrstoff_data.get('handelsbezeichnung', gefahrstoff_data.get('name', 'Unbekannt'))}")
                     with col_header2:
-                        if is_admin():
+                        can_delete = is_admin() or (st.session_state.logged_in and gefahrstoff_data.get('owner', 'all') == st.session_state.username)
+                        if can_delete:
                             if st.button("🗑️ Löschen", key=f"del_{gefahrstoff_id}", use_container_width=True):
                                 del gefahrstoffe[gefahrstoff_id]
                                 save_gefahrstoffe(gefahrstoffe)
@@ -1642,8 +1648,8 @@ elif st.session_state.current_page == 'gefahrstoff':
                 st.info("💡 **Tipp:** Keine Gefahrstoffe gefunden. Versuchen Sie eine andere Suchanfrage.")
     
     with tab2:
-        if not is_admin():
-            st.warning("⚠️ Nur Administratoren können neue Gefahrstoffe hinzufügen.")
+        if not st.session_state.logged_in:
+            st.warning("⚠️ Bitte loggen Sie sich ein, um eigene Gefahrstoffe hinzuzufügen.")
         else:
             st.subheader("Neuen Gefahrstoff hinzufügen")
             
@@ -1697,7 +1703,8 @@ elif st.session_state.current_page == 'gefahrstoff':
                             "substitution": substitution if substitution else "",
                             "sdb_link": sdb_link if sdb_link else "",
                             "sdb_datei": "",
-                            "erstellt_am": date.today().strftime('%d.%m.%Y')
+                            "erstellt_am": date.today().strftime('%d.%m.%Y'),
+                            "owner": "all" if is_admin() else st.session_state.username
                         }
                         save_gefahrstoffe(gefahrstoffe)
                         st.success(f"✅ Gefahrstoff '{handelsbezeichnung}' erfolgreich hinzugefügt!")
