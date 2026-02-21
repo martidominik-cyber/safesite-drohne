@@ -44,6 +44,7 @@ st.markdown(f"""
 USER_DB_FILE = "users.json"
 CUSTOMERS_DB_FILE = "customers.json"
 GEFAHRSOFF_DB_FILE = "gefahrstoffe.json"
+NOTFALL_DB_FILE = "notfall.json"
 
 def load_users():
     if not os.path.exists(USER_DB_FILE):
@@ -60,6 +61,24 @@ def load_customers():
 
 def save_customers(customers):
     with open(CUSTOMERS_DB_FILE, "w") as f: json.dump(customers, f, indent=2)
+
+def load_notfall():
+    if not os.path.exists(NOTFALL_DB_FILE):
+        # Initialisiere Standard-Notfallnummern
+        standards = {
+            "std_144": {"name": "144 - Sanitätsnotruf", "desc": "Wichtigste Nummer. Bei allen medizinischen Notfällen:\n- Unfall\n- Herzinfarkt\n- Sturz", "tel": "144", "icon": "🚑", "owner": "all"},
+            "std_1414": {"name": "1414 - Rega (Luftrettung)", "desc": "Essenziell in der Schweiz. Bei:\n- Schwer zugänglichem Gelände\n- Kran-Unfällen\n- Wenn Bodenambulanzen zu lange brauchen\n\n*Hinweis: Im Wallis wird über die 144 disponiert, aber die 1414 ist national bekannt.*", "tel": "1414", "icon": "🚁", "owner": "all"},
+            "std_118": {"name": "118 - Feuerwehr", "desc": "Nicht nur bei Feuer! Auch bei:\n- Personenrettung (aus Tiefen/Höhen)\n- Chemieunfällen (Öl/Gefahrgut)\n- Verschüttungen", "tel": "118", "icon": "🚒", "owner": "all"},
+            "std_145": {"name": "145 - Tox Info Suisse", "desc": "Bei Vergiftungen oder Unfällen mit Chemikalien/Baustoffen:\n- Verschlucken\n- Einatmen\n- Augenkontakt", "tel": "145", "icon": "☠️", "owner": "all"},
+            "std_117": {"name": "117 - Polizei", "desc": "Bei:\n- Verkehrsunfällen vor der Baustelle\n- Einbruch\n- Gewaltandrohung", "tel": "117", "icon": "👮", "owner": "all"},
+            "std_112": {"name": "112 - Euro-Notruf", "desc": "Funktioniert oft auch dann, wenn das eigene Handynetz kein Signal hat\n*(Roaming über Fremdnetze)*", "tel": "112", "icon": "🌍", "owner": "all"}
+        }
+        with open(NOTFALL_DB_FILE, "w") as f: json.dump(standards, f, indent=2)
+        return standards
+    with open(NOTFALL_DB_FILE, "r") as f: return json.load(f)
+
+def save_notfall(notfall_data):
+    with open(NOTFALL_DB_FILE, "w") as f: json.dump(notfall_data, f, indent=2)
 
 def load_gefahrstoffe():
     if not os.path.exists(GEFAHRSOFF_DB_FILE):
@@ -1389,92 +1408,103 @@ elif st.session_state.current_page == 'notfall':
     st.markdown("**Wenn etwas passiert, zählt jede Sekunde.**")
     st.markdown("---")
     
-    st.subheader("📞 Notfallnummern")
-    st.markdown("**Wählen Sie die richtige Nummer für Ihren Notfall:**")
-    st.markdown("")
+    notfall_data = load_notfall()
     
-    # Notfallnummern in Spalten anzeigen mit Containern
-    col1, col2 = st.columns(2)
+    tab1, tab2 = st.tabs(["📞 Notfallnummern", "➕ Neuen Notfallkontakt hinzufügen"])
     
-    with col1:
-        with st.container(border=True):
-            st.markdown("### 🚑 144 - Sanitätsnotruf")
-            st.markdown("**Wichtigste Nummer. Bei allen medizinischen Notfällen:**")
-            st.markdown("- Unfall")
-            st.markdown("- Herzinfarkt")
-            st.markdown("- Sturz")
-            st.markdown(f"[📞 144 anrufen](tel:144)", unsafe_allow_html=True)
-        
+    with tab1:
+        st.subheader("Ihre Notfallkontakte")
+        st.markdown("**Wählen Sie die richtige Nummer für Ihren Notfall:**")
         st.markdown("")
         
-        with st.container(border=True):
-            st.markdown("### 🚁 1414 - Rega (Luftrettung)")
-            st.markdown("**Essenziell in der Schweiz. Bei:**")
-            st.markdown("- Schwer zugänglichem Gelände")
-            st.markdown("- Kran-Unfällen")
-            st.markdown("- Wenn Bodenambulanzen zu lange brauchen")
-            st.caption("ℹ️ *Hinweis: Im Wallis wird über die 144 disponiert, aber die 1414 ist national bekannt.*")
-            st.markdown(f"[📞 1414 anrufen](tel:1414)", unsafe_allow_html=True)
-        
-        st.markdown("")
-        
-        with st.container(border=True):
-            st.markdown("### 🚒 118 - Feuerwehr")
-            st.markdown("**Nicht nur bei Feuer! Auch bei:**")
-            st.markdown("- Personenrettung (aus Tiefen/Höhen)")
-            st.markdown("- Chemieunfällen (Öl/Gefahrgut)")
-            st.markdown("- Verschüttungen")
-            st.markdown(f"[📞 118 anrufen](tel:118)", unsafe_allow_html=True)
-    
-    with col2:
-        with st.container(border=True):
-            st.markdown("### ☠️ 145 - Tox Info Suisse")
-            st.markdown("**Bei Vergiftungen oder Unfällen mit Chemikalien/Baustoffen:**")
-            st.markdown("- Verschlucken")
-            st.markdown("- Einatmen")
-            st.markdown("- Augenkontakt")
-            st.markdown(f"[📞 145 anrufen](tel:145)", unsafe_allow_html=True)
-        
-        st.markdown("")
-        
-        with st.container(border=True):
-            st.markdown("### 👮 117 - Polizei")
-            st.markdown("**Bei:**")
-            st.markdown("- Verkehrsunfällen vor der Baustelle")
-            st.markdown("- Einbruch")
-            st.markdown("- Gewaltandrohung")
-            st.markdown(f"[📞 117 anrufen](tel:117)", unsafe_allow_html=True)
-        
-        st.markdown("")
+        # Filtere Kontakte nach Sichtbarkeit (Jeder sieht "all" und seine eigenen)
+        # WICHTIG: Admin sieht hier auch nur "all" und seine EIGENEN, nicht die von Kunden!
+        visible_contacts = {}
+        for k_id, k_data in notfall_data.items():
+            owner = k_data.get('owner', 'all')
+            if owner == 'all' or (st.session_state.logged_in and owner == st.session_state.username):
+                visible_contacts[k_id] = k_data
+                
+        if not visible_contacts:
+            st.info("Keine Notfallkontakte gefunden.")
+        else:
+            # Kontakte in 2 Spalten anzeigen
+            cols = st.columns(2)
+            col_idx = 0
+            
+            for k_id, k_data in visible_contacts.items():
+                with cols[col_idx % 2]:
+                    with st.container(border=True):
+                        # Kopfbereich mit Löschen-Button für eigene Kontakte
+                        c1, c2 = st.columns([4, 1])
+                        with c1:
+                            st.markdown(f"### {k_data.get('icon', '📞')} {k_data.get('name', 'Unbekannt')}")
+                        with c2:
+                            # Darf nur gelöscht werden, wenn es der eigene ist (Standard 'all' darf niemand löschen)
+                            if st.session_state.logged_in and k_data.get('owner') == st.session_state.username:
+                                if st.button("🗑️", key=f"del_notfall_{k_id}", help="Kontakt löschen"):
+                                    del notfall_data[k_id]
+                                    save_notfall(notfall_data)
+                                    st.success("Gelöscht!")
+                                    st.rerun()
+                        
+                        st.markdown(k_data.get('desc', ''))
+                        st.markdown(f"[📞 {k_data.get('tel', '')} anrufen](tel:{k_data.get('tel', '')})", unsafe_allow_html=True)
+                    st.markdown("")
+                col_idx += 1
+
+        st.markdown("---")
+        st.subheader("❓ Die \"W-Fragen\"-Hilfe")
+        st.info("💡 **Viele Leute stehen unter Schock. Ein kurzes Skript auf dem Bildschirm hilft:**")
         
         with st.container(border=True):
-            st.markdown("### 🌍 112 - Euro-Notruf")
-            st.markdown("**Funktioniert oft auch dann, wenn das eigene Handynetz kein Signal hat**")
-            st.caption("*(Roaming über Fremdnetze)*")
-            st.markdown(f"[📞 112 anrufen](tel:112)", unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.subheader("❓ Die \"W-Fragen\"-Hilfe")
-    st.info("💡 **Viele Leute stehen unter Schock. Ein kurzes Skript auf dem Bildschirm hilft:**")
-    
-    # W-Fragen in einem Streamlit Container
-    with st.container(border=True):
-        st.markdown("#### Beantworten Sie diese Fragen am Telefon:")
-        st.markdown("")
-        st.markdown("**Wer ruft an?**")
-        st.caption("Ihr Name und Ihre Funktion")
-        st.markdown("")
-        st.markdown("**Wo ist es passiert?**")
-        st.caption("Genauer Standort, Adresse, Baustelle")
-        st.markdown("")
-        st.markdown("**Was ist passiert?**")
-        st.caption("Art des Unfalls, Verletzungen")
-        st.markdown("")
-        st.markdown("**Wie viele Verletzte?**")
-        st.caption("Anzahl der betroffenen Personen")
-    
-    st.markdown("---")
-    st.warning("⚠️ **Wichtig:** Bleiben Sie ruhig, sprechen Sie langsam und deutlich. Legen Sie nicht auf, bis die Rettungsleitstelle alle Informationen hat.")
+            st.markdown("#### Beantworten Sie diese Fragen am Telefon:")
+            st.markdown("")
+            st.markdown("**Wer ruft an?**")
+            st.caption("Ihr Name und Ihre Funktion")
+            st.markdown("")
+            st.markdown("**Wo ist es passiert?**")
+            st.caption("Genauer Standort, Adresse, Baustelle")
+            st.markdown("")
+            st.markdown("**Was ist passiert?**")
+            st.caption("Art des Unfalls, Verletzungen")
+            st.markdown("")
+            st.markdown("**Wie viele Verletzte?**")
+            st.caption("Anzahl der betroffenen Personen")
+        
+        st.markdown("---")
+        st.warning("⚠️ **Wichtig:** Bleiben Sie ruhig, sprechen Sie langsam und deutlich. Legen Sie nicht auf, bis die Rettungsleitstelle alle Informationen hat.")
+
+    with tab2:
+        if not st.session_state.logged_in:
+            st.warning("⚠️ Bitte loggen Sie sich ein, um eigene Notfallkontakte hinzuzufügen.")
+        else:
+            st.subheader("Eigenen Notfallkontakt hinterlegen")
+            st.info("Diese Kontakte sind **nur für Sie** sichtbar. Andere Kunden und auch Administratoren können diese Einträge nicht sehen.")
+            
+            with st.form("neuer_notfall_kontakt", clear_on_submit=True):
+                n_name = st.text_input("Name des Kontakts *", placeholder="z.B. Bauleiter Herr Müller, Firmenarzt, etc.")
+                n_tel = st.text_input("Telefonnummer *", placeholder="z.B. 079 123 45 67")
+                n_desc = st.text_area("Beschreibung / Wann anrufen?", placeholder="z.B. Bei Fragen zur Statik")
+                n_icon = st.selectbox("Icon", ["📞", "👷", "👨‍⚕️", "🏥", "🏢", "🚨", "📱", "☎️", "🚑"])
+                
+                submitted = st.form_submit_button("Kontakt hinzufügen", use_container_width=True, type="primary")
+                
+                if submitted:
+                    if not n_name or not n_tel:
+                        st.error("❌ Bitte Name und Telefonnummer ausfüllen!")
+                    else:
+                        new_id = str(uuid.uuid4())
+                        notfall_data[new_id] = {
+                            "name": n_name,
+                            "tel": n_tel,
+                            "desc": n_desc,
+                            "icon": n_icon,
+                            "owner": st.session_state.username
+                        }
+                        save_notfall(notfall_data)
+                        st.success(f"✅ Notfallkontakt '{n_name}' erfolgreich hinzugefügt!")
+                        st.rerun()
 
 elif st.session_state.current_page == 'gefahrstoff':
     st.header("🧪 Gefahrstoffkataster")
