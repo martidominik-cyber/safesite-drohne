@@ -46,6 +46,68 @@ CUSTOMERS_DB_FILE = "customers.json"
 GEFAHRSOFF_DB_FILE = "gefahrstoffe.json"
 NOTFALL_DB_FILE = "notfall.json"
 
+def migrate_rich_users():
+    """Migrates rich user definitions in users.json to customers.json and flattens users.json"""
+    if not os.path.exists(USER_DB_FILE):
+        return
+    try:
+        with open(USER_DB_FILE, "r") as f: 
+            users_in = json.load(f)
+    except:
+        return
+        
+    needs_migration = False
+    if isinstance(users_in, dict):
+        for k, v in users_in.items():
+            if isinstance(v, dict):
+                needs_migration = True
+                break
+                
+    if not needs_migration:
+        return
+        
+    # Lade existierende Kunden (um Duplikate zu vermeiden)
+    customers = {}
+    if os.path.exists(CUSTOMERS_DB_FILE):
+        try:
+            with open(CUSTOMERS_DB_FILE, "r") as f:
+                customers = json.load(f)
+        except:
+            pass
+            
+    existing_emails = {c.get('email', '') for c in customers.values() if isinstance(c, dict)}
+    existing_usernames = {c.get('username', '') for c in customers.values() if isinstance(c, dict)}
+    
+    new_users = {}
+    
+    for username, data in users_in.items():
+        if isinstance(data, dict):
+            pwd = data.get("password", "1234")
+            new_users[username] = pwd
+            
+            email = data.get("email", f"{username}@example.com")
+            
+            # Create a customer entry if it's not the admin, and not already in customers.json
+            if username != "admin" and email not in existing_emails and username not in existing_usernames:
+                kunde_id = str(uuid.uuid4())[:8]
+                customers[kunde_id] = {
+                    "name": data.get("name", username),
+                    "firma": data.get("firma", ""),
+                    "email": email,
+                    "telefon": data.get("telefon", ""),
+                    "adresse": data.get("adresse", ""),
+                    "credits": data.get("credits", 0),
+                    "username": username,
+                    "erstellt_am": date.today().strftime('%d.%m.%Y')
+                }
+        else:
+            new_users[username] = data
+            
+    with open(USER_DB_FILE, "w") as f: json.dump(new_users, f, indent=2)
+    with open(CUSTOMERS_DB_FILE, "w") as f: json.dump(customers, f, indent=2)
+
+migrate_rich_users()
+
 def load_users():
     if not os.path.exists(USER_DB_FILE):
         with open(USER_DB_FILE, "w") as f: json.dump({"admin": "1234"}, f)
