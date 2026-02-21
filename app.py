@@ -1090,11 +1090,7 @@ Beispiel für eine professionelle Mangelbeschreibung:
                     model_names = [
                         'gemini-3.1-pro',
                         'gemini-3-pro',
-                        'gemini-3-flash',
-                        'gemini-2.5-pro',
-                        'gemini-2.5-flash',
-                        'gemini-1.5-pro-latest',
-                        'gemini-1.5-flash-latest'
+                        'gemini-3-flash'
                     ]
                     
                     found_result = False
