@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 import cv2
 import tempfile
 import os
@@ -919,7 +919,7 @@ elif st.session_state.current_page == 'safesite':
                 ]
                 
                 try:
-                    genai.configure(api_key=API_KEY)
+                    client = genai.Client(api_key=API_KEY)
                     
                     # Detaillierter Prompt mit spezifischen Schweizer Normen
                     prompt = f"""
@@ -1107,19 +1107,24 @@ Beispiel für eine professionelle Mangelbeschreibung:
                                 status_placeholder.info(f"🔄 {progress_messages[progress_step]}")
                                 progress_step += 1
                             
-                            model = genai.GenerativeModel(mn)
                             if st.session_state.m_type == "video":
                                 status_placeholder.info("🔄 SafeSite lädt Video hoch...")
-                                f = genai.upload_file(st.session_state.m_files[0])
+                                f = client.files.upload(file=st.session_state.m_files[0])
                                 # Warten (Fix für Hänger) mit Progress
                                 while f.state.name == "PROCESSING":
                                     elapsed = int(time.time() - start_time)
                                     status_placeholder.info(f"🔄 SafeSite verarbeitet Video... ({elapsed}s)")
                                     time.sleep(2)
-                                    f = genai.get_file(f.name)
+                                    f = client.files.get(name=f.name)
                                 
                                 status_placeholder.info("🔄 SafeSite analysiert Video nach Schweizer Normen...")
-                                res = model.generate_content([f, prompt], generation_config={"response_mime_type": "application/json"})
+                                res = client.models.generate_content(
+                                    model=mn,
+                                    contents=[f, prompt],
+                                    config=genai.types.GenerateContentConfig(
+                                        response_mime_type="application/json",
+                                    ),
+                                )
                             else:
                                 status_placeholder.info("🔄 SafeSite lädt Bilder...")
                                 # Öffne Bilder und konvertiere bei Bedarf
@@ -1154,7 +1159,13 @@ Beispiel für eine professionelle Mangelbeschreibung:
                                 elapsed = int(time.time() - start_time)
                                 status_placeholder.info(f"🔄 SafeSite prüft Gerüste, Absturzkanten, Gräben... ({elapsed}s)")
                                 
-                                res = model.generate_content([prompt] + imgs, generation_config={"response_mime_type": "application/json"})
+                                res = client.models.generate_content(
+                                    model=mn,
+                                    contents=[prompt] + imgs,
+                                    config=genai.types.GenerateContentConfig(
+                                        response_mime_type="application/json",
+                                    ),
+                                )
                             
                             # Analyse abgeschlossen
                             elapsed = int(time.time() - start_time)
