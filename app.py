@@ -106,7 +106,9 @@ def migrate_rich_users():
     with open(USER_DB_FILE, "w") as f: json.dump(new_users, f, indent=2)
     with open(CUSTOMERS_DB_FILE, "w") as f: json.dump(customers, f, indent=2)
 
-migrate_rich_users()
+if 'migration_done' not in st.session_state:
+    migrate_rich_users()
+    st.session_state.migration_done = True
 
 def load_users():
     if not os.path.exists(USER_DB_FILE):
