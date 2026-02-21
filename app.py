@@ -1114,7 +1114,7 @@ Beispiel für eine professionelle Mangelbeschreibung:
                 st.markdown("### 📝 Projektdaten für Bericht")
                 c_a, c_b = st.columns(2)
                 with c_a:
-                    proj = st.text_input("Projektname", value="Baustelle, ....")
+                    proj = st.text_input("Projektname", value="Baustellen-NR, Ort")
                     insp = st.text_input("Inspektor Name", value="Dominik Marti")
                 with c_b:
                     stat = st.selectbox("Status", ["⚠️ Massnahmen erforderlich", "✅ In Ordnung", "🛑 Kritisch - Baustopp"])
