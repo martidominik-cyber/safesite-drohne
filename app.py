@@ -1092,7 +1092,14 @@ Beispiel für eine professionelle Mangelbeschreibung:
                     
                     # Wir probieren die Modelle der Reihe nach durch.
                     model_names = [
-                        'gemini-2.5-pro'
+                        'gemini-2.5-pro',
+                        'gemini-2.5-flash',
+                        'gemini-3-pro-preview',
+                        'gemini-3-flash-preview',
+                        'gemini-3.1-pro-preview',
+                        'gemini-3.1-pro-preview-customtools',
+                        'gemini-2.0-flash',
+                        'gemini-pro-latest'
                     ]
                     
                     found_result = False
