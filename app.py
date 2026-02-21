@@ -808,7 +808,7 @@ elif st.session_state.current_page == 'safesite':
                         st.info("💡 Bitte versuchen Sie es erneut oder wählen Sie andere Dateien aus.")
 
         elif st.session_state.app_step == 'screen_b':
-            st.subheader("🕵️‍♂️ KI-Analyse (Gemini 3.0)")
+            st.subheader("🕵️‍♂️ KI-Analyse")
             if st.session_state.m_type == "video": st.video(st.session_state.m_files[0])
             else: 
                 cols = st.columns(3)
@@ -1114,7 +1114,7 @@ Beispiel für eine professionelle Mangelbeschreibung:
                 st.markdown("### 📝 Projektdaten für Bericht")
                 c_a, c_b = st.columns(2)
                 with c_a:
-                    proj = st.text_input("Projektname", value="Überbauung 'Luegisland', Wohlen AG")
+                    proj = st.text_input("Projektname", value="Baustelle, ....")
                     insp = st.text_input("Inspektor Name", value="Dominik Marti")
                 with c_b:
                     stat = st.selectbox("Status", ["⚠️ Massnahmen erforderlich", "✅ In Ordnung", "🛑 Kritisch - Baustopp"])
