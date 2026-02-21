@@ -920,8 +920,7 @@ elif st.session_state.current_page == 'safesite':
                 
                 try:
                     client = genai.Client(
-                        api_key=API_KEY, 
-                        http_options={'api_version': 'v1beta'}
+                        api_key=API_KEY
                     )
                     
                     with st.spinner("Analysiere Daten..."):
@@ -1092,9 +1091,6 @@ Beispiel für eine professionelle Mangelbeschreibung:
                     
                     # Wir probieren die Modelle der Reihe nach durch.
                     model_names = [
-                        'gemini-3.1-pro-preview',
-                        'gemini-3-pro-preview',
-                        'gemini-3-flash-preview',
                         'gemini-2.5-pro'
                     ]
                     
