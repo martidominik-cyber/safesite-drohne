@@ -919,10 +919,14 @@ elif st.session_state.current_page == 'safesite':
                 ]
                 
                 try:
-                    client = genai.Client(api_key=API_KEY)
+                    client = genai.Client(
+                        api_key=API_KEY, 
+                        http_options={'api_version': 'v1alpha'}
+                    )
                     
-                    # Detaillierter Prompt mit spezifischen Schweizer Normen
-                    prompt = f"""
+                    with st.spinner("Analysiere Daten..."):
+                        # Detaillierter Prompt mit spezifischen Schweizer Normen
+                        prompt = f"""
 Du bist ein äusserst strenger und erfahrener Schweizer Bau-Sicherheitsprüfer (SiBe) mit tiefem Wissen der BauAV und SUVA-Richtlinien.
 
 KRITISCH: Du erhältst {len(st.session_state.m_files)} Bilder zur Analyse. Analysiere JEDES Bild MILLIMETERGENAU und SYSTEMATISCH nach ALLEN relevanten Schweizer Sicherheitsnormen (BauAV und SUVA). Es ist deine PFLICHT, JEDEN noch so kleinen Verstoss zu erkennen!
