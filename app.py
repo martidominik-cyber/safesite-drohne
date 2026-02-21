@@ -1086,17 +1086,17 @@ Beispiel für eine professionelle Mangelbeschreibung:
 {{"kategorie": "Baugruben und Erdarbeiten", "prioritaet": "Kritisch", "mangel": "An fast allen Baugrubenrändern (besonders im Bereich des noch nicht hinterfüllten Kellers im rechten Bildteil) fehlt der vorgeschriebene Seitenschutz. Es besteht unmittelbare Lebensgefahr durch Absturz in die Grube. Die Böschungen sind steil und mit Schnee bedeckt. Durch Schmelzwasser besteht akute Rutschgefahr.", "verstoss": "Verstoss BauAV Art. 17 - Bei Absturzhöhen über 2m ist ein dreiteiliger Seitenschutz zwingend. Verstoss BauAV Art. 59 - Böschungswinkel zu steil.", "massnahme": "Sofortige Absperrung (mind. 1.5m - 2m Abstand zur Kante) oder Montage eines festen Geländers. Geologen/Geotechniker hinzuziehen. Böschungswinkel kontrollieren. Bei aufgeweichtem Boden Böschung abflachen oder verbauen.", "zeitstempel_sekunden": 0, "bild_index": 0}}
 """
                     
-                    # --- HIER IST DIE SCHLAUE SCHLEIFE ---
                     # Wir probieren die Modelle der Reihe nach durch.
-                    # Wenn 3.0 nicht geht, nimmt er automatisch 2.0 oder 1.5
                     model_names = [
-                        'gemini-3-pro-preview', 
-                        'gemini-2.0-flash-exp', 
+                        'gemini-2.5-pro',
+                        'gemini-2.5-flash',
+                        'gemini-2.0-flash', 
                         'gemini-1.5-pro',
                         'gemini-1.5-flash'
                     ]
                     
                     found_result = False
+                    last_error = None
                     
                     # Progress-Tracker
                     progress_step = 0
@@ -1168,6 +1168,7 @@ Beispiel für eine professionelle Mangelbeschreibung:
                             found_result = True
                             break # Schleife beenden, wir haben ein Ergebnis
                         except Exception as e:
+                            last_error = str(e)
                             elapsed = int(time.time() - start_time)
                             status_placeholder.warning(f"⚠️ Versuche nächstes Modell... ({elapsed}s)")
                             continue # Fehler beim Modell? Nächstes probieren!
@@ -1176,7 +1177,7 @@ Beispiel für eine professionelle Mangelbeschreibung:
                     progress_placeholder.empty()
                     
                     if not found_result:
-                        status_placeholder.error("❌ Alle KI-Modelle sind gerade ausgelastet oder nicht erreichbar. Bitte später versuchen.")
+                        status_placeholder.error(f"❌ Alle KI-Modelle sind fehlgeschlagen. Letzter Fehler: {last_error}")
                     else:
                         status_placeholder.empty()  # Entferne Status-Nachricht
                         st.rerun()
