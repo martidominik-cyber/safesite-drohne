@@ -636,8 +636,13 @@ with st.sidebar:
         
     st.title("Menü")
     page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV", "🚨 Notfallmanagement", "🧪 Gefahrstoffkataster", "🌤️ Wetter-Warnungen"]
-    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'notfall':4, 'gefahrstoff':5, 'wetter':6, 'kunden':7}
+    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'notfall':4, 'gefahrstoff':5, 'wetter':6}
     
+    # Mein Profil hinzufügen, wenn eingeloggt (egal ob Admin oder User)
+    if st.session_state.logged_in:
+        page_options.append("👤 Mein Profil")
+        p_map['profil'] = len(page_options) - 1
+        
     # Admin-Menüpunkt hinzufügen, wenn Admin eingeloggt
     if is_admin():
         page_options.append("👥 Kundenverwaltung")
@@ -658,6 +663,7 @@ with st.sidebar:
     elif page == "🚨 Notfallmanagement": st.session_state.current_page = 'notfall'
     elif page == "🧪 Gefahrstoffkataster": st.session_state.current_page = 'gefahrstoff'
     elif page == "🌤️ Wetter-Warnungen": st.session_state.current_page = 'wetter'
+    elif page == "👤 Mein Profil": st.session_state.current_page = 'profil'
     elif page == "👥 Kundenverwaltung": st.session_state.current_page = 'kunden'
     
     st.divider()
@@ -1802,6 +1808,114 @@ elif st.session_state.current_page == 'gefahrstoff':
                         }
                         save_gefahrstoffe(gefahrstoffe)
                         st.success(f"✅ Gefahrstoff '{handelsbezeichnung}' erfolgreich hinzugefügt!")
+                        st.rerun()
+
+elif st.session_state.current_page == 'profil':
+    st.header("👤 Mein Profil")
+    st.markdown("Hier können Sie Ihre persönlichen Benutzerdaten anzeigen und bearbeiten.")
+    st.markdown("---")
+    
+    # Hole Userdaten
+    username = st.session_state.username
+    kunde_id, kunde_data = get_customer_by_username_or_email(username)
+    
+    if not kunde_data:
+        st.warning("Keine Kundendaten zu diesem Login gefunden. Bitte kontaktieren Sie den Administrator.")
+    else:
+        # Lade aktuelle Users
+        users = load_users()
+        current_email = kunde_data.get('email', '')
+        current_username = kunde_data.get('username', '')
+        
+        tab_info, tab_edit = st.tabs(["📋 Meine Daten", "✏️ Daten bearbeiten"])
+        
+        with tab_info:
+            with st.container(border=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**Name:** {kunde_data.get('name', '-')}")
+                    st.write(f"**Firma:** {kunde_data.get('firma', '-')}")
+                    st.write(f"**Email:** {current_email}")
+                    st.write(f"**Benutzername:** {current_username if current_username else '-'}")
+                with col2:
+                    st.write(f"**Telefon:** {kunde_data.get('telefon', '-')}")
+                    st.write(f"**Adresse:** {kunde_data.get('adresse', '-')}")
+            
+                st.divider()
+                st.metric("🪙 Verfügbare SafeSite Credits", int(kunde_data.get('credits', 0)))
+                st.caption("Credits können nur vom Administrator aufgeladen werden.")
+        
+        with tab_edit:
+            with st.form("profil_bearbeiten"):
+                st.subheader("Profildaten aktualisieren")
+                edit_name = st.text_input("Name *", value=kunde_data.get('name', ''))
+                edit_firma = st.text_input("Firma", value=kunde_data.get('firma', ''))
+                edit_email = st.text_input("Email *", value=current_email)
+                edit_username = st.text_input("Benutzername", value=current_username)
+                edit_tel = st.text_input("Telefon", value=kunde_data.get('telefon', ''))
+                edit_adresse = st.text_area("Adresse", value=kunde_data.get('adresse', ''))
+                
+                st.info("Hinweis: Wenn Sie Email oder Benutzername ändern, ändert sich auch Ihr Login.")
+                
+                submit_profil = st.form_submit_button("✅ Speichern", type="primary")
+                
+                if submit_profil:
+                    if not edit_name or not edit_email:
+                        st.error("Name und Email sind Pflichtfelder!")
+                    else:
+                        needs_user_save = False
+                        pwd_to_copy = None
+                        
+                        if current_email and current_email in users:
+                            pwd_to_copy = users[current_email]
+                        elif current_username and current_username in users:
+                            pwd_to_copy = users[current_username]
+                            
+                        # Falls Email ändert
+                        if current_email and edit_email != current_email and current_email in users:
+                            pwd = users[current_email]
+                            del users[current_email]
+                            users[edit_email] = pwd
+                            needs_user_save = True
+                            if not pwd_to_copy: pwd_to_copy = pwd
+                            
+                        # Falls Username ändert
+                        if current_username and edit_username != current_username and current_username in users:
+                            pwd = users[current_username]
+                            del users[current_username]
+                            if edit_username:
+                                users[edit_username] = pwd
+                            needs_user_save = True
+                            if not pwd_to_copy: pwd_to_copy = pwd
+                            
+                        # Neues Email/Username falls vorher nicht gesetzt
+                        if not current_username and edit_username and pwd_to_copy:
+                            users[edit_username] = pwd_to_copy
+                            needs_user_save = True
+                        if not current_email and edit_email and pwd_to_copy:
+                            users[edit_email] = pwd_to_copy
+                            needs_user_save = True
+                            
+                        if needs_user_save:
+                            save_users(users)
+                            # Update session state falls der Login-Name der aktuelle war
+                            if st.session_state.username == current_email and edit_email != current_email:
+                                st.session_state.username = edit_email
+                            elif st.session_state.username == current_username and edit_username != current_username:
+                                st.session_state.username = edit_username
+                            
+                        customers = load_customers()
+                        if kunde_id in customers:
+                            customers[kunde_id]['name'] = edit_name
+                            customers[kunde_id]['firma'] = edit_firma
+                            customers[kunde_id]['email'] = edit_email
+                            customers[kunde_id]['username'] = edit_username
+                            customers[kunde_id]['telefon'] = edit_tel
+                            customers[kunde_id]['adresse'] = edit_adresse
+                            save_customers(customers)
+                            
+                        st.success("✅ Profildaten erfolgreich aktualisiert!")
+                        # Trick to refresh without breaking
                         st.rerun()
 
 elif st.session_state.current_page == 'wetter':
