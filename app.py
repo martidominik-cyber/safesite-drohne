@@ -1856,12 +1856,12 @@ elif st.session_state.current_page == 'profil':
         with tab_edit:
             with st.form("profil_bearbeiten"):
                 st.subheader("Profildaten aktualisieren")
-                edit_name = st.text_input("Name *", value=kunde_data.get('name', ''))
-                edit_firma = st.text_input("Firma", value=kunde_data.get('firma', ''))
+                edit_name = st.text_input("Name *", value=kunde_data.get('name', '') if kunde_data else '')
+                edit_firma = st.text_input("Firma", value=kunde_data.get('firma', '') if kunde_data else '')
                 edit_email = st.text_input("Email *", value=current_email)
                 edit_username = st.text_input("Benutzername", value=current_username)
-                edit_tel = st.text_input("Telefon", value=kunde_data.get('telefon', ''))
-                edit_adresse = st.text_area("Adresse", value=kunde_data.get('adresse', ''))
+                edit_tel = st.text_input("Telefon", value=kunde_data.get('telefon', '') if kunde_data else '')
+                edit_adresse = st.text_area("Adresse", value=kunde_data.get('adresse', '') if kunde_data else '')
                 
                 st.info("Hinweis: Wenn Sie Email oder Benutzername ändern, ändert sich auch Ihr Login.")
                 
