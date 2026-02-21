@@ -921,7 +921,7 @@ elif st.session_state.current_page == 'safesite':
                 try:
                     client = genai.Client(
                         api_key=API_KEY, 
-                        http_options={'api_version': 'v1alpha'}
+                        http_options={'api_version': 'v2beta'}
                     )
                     
                     with st.spinner("Analysiere Daten..."):
