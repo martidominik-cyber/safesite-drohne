@@ -1819,31 +1819,39 @@ elif st.session_state.current_page == 'profil':
     username = st.session_state.username
     kunde_id, kunde_data = get_customer_by_username_or_email(username)
     
-    if not kunde_data:
+    if not kunde_data and username != "admin":
         st.warning("Keine Kundendaten zu diesem Login gefunden. Bitte kontaktieren Sie den Administrator.")
     else:
         # Lade aktuelle Users
         users = load_users()
-        current_email = kunde_data.get('email', '')
-        current_username = kunde_data.get('username', '')
+        current_email = kunde_data.get('email', '') if kunde_data else ''
+        current_username = kunde_data.get('username', '') if kunde_data else ''
         
-        tab_info, tab_edit = st.tabs(["📋 Meine Daten", "✏️ Daten bearbeiten"])
+        # Tabs depending on whether we have customer data (admin might not have it)
+        if kunde_data:
+            tab_info, tab_edit, tab_pwd = st.tabs(["📋 Meine Daten", "✏️ Daten bearbeiten", "🔐 Passwort ändern"])
+        else:
+            tab_info, tab_edit, tab_pwd = st.tabs(["📋 Meine Daten", "✏️ Daten bearbeiten", "🔐 Passwort ändern"])
+            # We'll just hide the info and edit tabs content for admin if no data exists
         
         with tab_info:
-            with st.container(border=True):
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.write(f"**Name:** {kunde_data.get('name', '-')}")
-                    st.write(f"**Firma:** {kunde_data.get('firma', '-')}")
-                    st.write(f"**Email:** {current_email}")
-                    st.write(f"**Benutzername:** {current_username if current_username else '-'}")
-                with col2:
-                    st.write(f"**Telefon:** {kunde_data.get('telefon', '-')}")
-                    st.write(f"**Adresse:** {kunde_data.get('adresse', '-')}")
-            
-                st.divider()
-                st.metric("🪙 Verfügbare SafeSite Credits", int(kunde_data.get('credits', 0)))
-                st.caption("Credits können nur vom Administrator aufgeladen werden.")
+            if kunde_data:
+                with st.container(border=True):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**Name:** {kunde_data.get('name', '-')}")
+                        st.write(f"**Firma:** {kunde_data.get('firma', '-')}")
+                        st.write(f"**Email:** {current_email}")
+                        st.write(f"**Benutzername:** {current_username if current_username else '-'}")
+                    with col2:
+                        st.write(f"**Telefon:** {kunde_data.get('telefon', '-')}")
+                        st.write(f"**Adresse:** {kunde_data.get('adresse', '-')}")
+                
+                    st.divider()
+                    st.metric("🪙 Verfügbare SafeSite Credits", int(kunde_data.get('credits', 0)))
+                    st.caption("Credits können nur vom Administrator aufgeladen werden.")
+            else:
+                st.info("System-Administrator Account. Keine Kundendaten hinterlegt.")
         
         with tab_edit:
             with st.form("profil_bearbeiten"):
@@ -1859,8 +1867,11 @@ elif st.session_state.current_page == 'profil':
                 
                 submit_profil = st.form_submit_button("✅ Speichern", type="primary")
                 
+                
                 if submit_profil:
-                    if not edit_name or not edit_email:
+                    if username == "admin" and not kunde_data:
+                        st.warning("Admin-Daten können momentan nicht bearbeitet werden.")
+                    elif not edit_name or not edit_email:
                         st.error("Name und Email sind Pflichtfelder!")
                     else:
                         needs_user_save = False
@@ -1917,6 +1928,33 @@ elif st.session_state.current_page == 'profil':
                         st.success("✅ Profildaten erfolgreich aktualisiert!")
                         # Trick to refresh without breaking
                         st.rerun()
+
+        with tab_pwd:
+            with st.form("profil_passwort_aendern"):
+                st.subheader("Passwort ändern")
+                new_pwd1 = st.text_input("Neues Passwort", type="password")
+                new_pwd2 = st.text_input("Neues Passwort wiederholen", type="password")
+                
+                submit_pwd = st.form_submit_button("🔑 Passwort speichern", type="primary")
+                
+                if submit_pwd:
+                    if not new_pwd1 or not new_pwd2:
+                        st.error("Bitte beide Passwortfelder ausfüllen!")
+                    elif new_pwd1 != new_pwd2:
+                        st.error("Die Passwörter stimmen nicht überein!")
+                    else:
+                        users = load_users()
+                        if current_email in users:
+                            users[current_email] = new_pwd1
+                        if current_username in users:
+                            users[current_username] = new_pwd1
+                            
+                        # Fallback for admin
+                        if username == "admin":
+                            users["admin"] = new_pwd1
+                            
+                        save_users(users)
+                        st.success("✅ Passwort erfolgreich geändert!")
 
 elif st.session_state.current_page == 'wetter':
     st.header("🌤️ Wetter-Warnungen")
