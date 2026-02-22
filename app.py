@@ -2568,7 +2568,6 @@ elif st.session_state.current_page == 'preise':
                 <span style="color: #2196f3; margin-right: 5px;">📄</span> 
                 Preis pro Flug: {price_per_credit}
             </div>
-            
             <a href="mailto:info@safesite-drohne.ch?subject={subject}&body={body}" class="paket-btn" style="background-color: {color_hex};">
                 {btn_text}
             </a>
