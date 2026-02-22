@@ -2576,10 +2576,10 @@ elif st.session_state.current_page == 'preise':
 
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
-        render_paket("Paket S", "Der Einsteiger", "245 CHF", "5", "49.00 CHF", "#4eb0f5", "Paket anfragen")
+        render_paket("Paket S", "Der Einsteiger", "245 CHF", "5", "49.00 CHF", "#4eb0f5", "Paket anfragen", True)
         render_paket("Paket M", "Der Standard", "890 CHF", "20", "44.50 CHF", "#2da68e", "Paket anfragen", True)
-        render_paket("Paket L", "Der Profi", "1'950 CHF", "50", "39.00 CHF", "#5b6bba", "Paket anfragen")
-        render_paket("Paket XL", "Enterprise / Konzern", "6'900 CHF", "200", "34.50 CHF", "#8359b8", "Paket anfragen")
+        render_paket("Paket L", "Der Profi", "1'950 CHF", "50", "39.00 CHF", "#5b6bba", "Paket anfragen", True)
+        render_paket("Paket XL", "Enterprise / Konzern", "6'900 CHF", "200", "34.50 CHF", "#8359b8", "Paket anfragen", True)
         
         st.markdown("<p style='text-align:center; color:#888; font-size:12px; margin-top:20px;'>Alle Preise verstehen sich exkl. MwSt.<br>Weitere Laufzeiten oder Konditionen auf Anfrage.</p>", unsafe_allow_html=True)
 
