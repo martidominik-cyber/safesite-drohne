@@ -1137,40 +1137,36 @@ Beispiel für eine professionelle Mangelbeschreibung:
                             else:
                                 status_placeholder.info("🔄 SafeSite lädt Bilder...")
                                 # Öffne Bilder und konvertiere bei Bedarf
-                                imgs = []
+                                uploaded_files = []
                                 for idx, p in enumerate(st.session_state.m_files):
                                     try:
-                                        status_placeholder.info(f"🔄 SafeSite verarbeitet Bild {idx+1}/{len(st.session_state.m_files)}...")
-                                        img = Image.open(p)
-                                        # Stelle sicher, dass Bild im RGB-Format ist
-                                        if img.mode != 'RGB':
-                                            img = img.convert('RGB')
-                                        imgs.append(img)
+                                        status_placeholder.info(f"🔄 SafeSite lädt Bild {idx+1}/{len(st.session_state.m_files)} hoch...")
+                                        f = client.files.upload(file=p)
+                                        uploaded_files.append(f)
                                     except Exception as e:
-                                        st.warning(f"⚠️ Fehler beim Öffnen von {os.path.basename(p)}: {str(e)}")
-                                        # Versuche mit cv2 als Fallback
-                                        try:
-                                            img_array = cv2.imread(p)
-                                            if img_array is not None:
-                                                img_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
-                                                img = Image.fromarray(img_rgb)
-                                                imgs.append(img)
-                                        except:
-                                            st.error(f"❌ Konnte Bild {os.path.basename(p)} nicht verarbeiten")
+                                        st.warning(f"⚠️ Fehler beim Hochladen von {os.path.basename(p)}: {str(e)}")
                                 
-                                if not imgs:
-                                    status_placeholder.error("❌ Keine Bilder konnten verarbeitet werden.")
-                                    st.error("❌ Keine Bilder konnten verarbeitet werden. Bitte versuchen Sie andere Dateiformate.")
+                                if not uploaded_files:
+                                    status_placeholder.error("❌ Keine Bilder konnten hochgeladen werden.")
+                                    st.error("❌ Keine Bilder konnten hochgeladen werden.")
                                     continue
                                 
+                                # Warten bis Bilder verarbeitet sind
+                                for idx, f in enumerate(uploaded_files):
+                                    while f.state.name == "PROCESSING":
+                                        elapsed = int(time.time() - start_time)
+                                        status_placeholder.info(f"🔄 SafeSite verarbeitet Bild {idx+1}/{len(uploaded_files)}... ({elapsed}s)")
+                                        time.sleep(2)
+                                        f = client.files.get(name=f.name)
+                                        uploaded_files[idx] = f
+                                
                                 status_placeholder.info("🔄 SafeSite analysiert Bilder nach Schweizer Normen (BauAV & SUVA)...")
-                                # Zeige Progress während der Analyse
                                 elapsed = int(time.time() - start_time)
                                 status_placeholder.info(f"🔄 SafeSite prüft Gerüste, Absturzkanten, Gräben... ({elapsed}s)")
                                 
                                 res = client.models.generate_content(
                                     model=mn,
-                                    contents=[prompt] + imgs,
+                                    contents=[prompt] + uploaded_files,
                                     config=genai.types.GenerateContentConfig(
                                         response_mime_type="application/json",
                                     ),
