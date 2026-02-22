@@ -635,8 +635,8 @@ with st.sidebar:
         st.image(LOGO_FILE, use_container_width=True)
         
     st.title("Menü")
-    page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV", "🚨 Notfallmanagement", "🧪 Gefahrstoffkataster", "🌤️ Wetter-Warnungen"]
-    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'notfall':4, 'gefahrstoff':5, 'wetter':6}
+    page_options = ["🏠 Startseite", "🔍 SafeSite-Check", "📋 SUVA Regeln", "⚖️ BauAV", "🚨 Notfallmanagement", "🧪 Gefahrstoffkataster", "🌤️ Wetter-Warnungen", "💎 Preise"]
+    p_map = {'home':0, 'safesite':1, 'suva':2, 'bauav':3, 'notfall':4, 'gefahrstoff':5, 'wetter':6, 'preise':7}
     
     # Mein Profil hinzufügen, wenn eingeloggt (egal ob Admin oder User)
     if st.session_state.logged_in:
@@ -663,6 +663,7 @@ with st.sidebar:
     elif page == "🚨 Notfallmanagement": st.session_state.current_page = 'notfall'
     elif page == "🧪 Gefahrstoffkataster": st.session_state.current_page = 'gefahrstoff'
     elif page == "🌤️ Wetter-Warnungen": st.session_state.current_page = 'wetter'
+    elif page == "💎 Preise": st.session_state.current_page = 'preise'
     elif page == "👤 Mein Profil": st.session_state.current_page = 'profil'
     elif page == "👥 Kundenverwaltung": st.session_state.current_page = 'kunden'
     
@@ -776,6 +777,13 @@ if st.session_state.current_page == 'home':
     with col6:
         if st.button("🌤️ Wetter-Warnungen", use_container_width=True):
             st.session_state.current_page = 'wetter'
+            st.rerun()
+            
+    st.markdown("")
+    col7, col8, col9 = st.columns(3)
+    with col7:
+        if st.button("💎 Preise", use_container_width=True):
+            st.session_state.current_page = 'preise'
             st.rerun()
     
     # Kundenverwaltung nur für Admin - eigene Zeile
@@ -2465,3 +2473,114 @@ elif st.session_state.current_page == 'kunden':
                                 login_info.append(f"Benutzername: {username_optional}")
                             st.success(f"✅ Kunde '{kunde_name}' erfolgreich hinzugefügt mit {initial_credits} Credits und Login erstellt ({' | '.join(login_info)})!")
                             st.rerun()
+
+elif st.session_state.current_page == 'preise':
+    st.header("💎 Flight Credits & Pakete")
+    
+    st.markdown("""
+        <style>
+        .paket-card {
+            border: 2px solid #f0e6e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            background-color: #fdfaf6;
+            position: relative;
+        }
+        .paket-card-beliebt {
+            border: 2px solid #2da68e;
+            background-color: #f6fbfa;
+        }
+        .paket-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 0px;
+        }
+        .paket-price {
+            font-size: 24px;
+            font-weight: 800;
+            text-align: right;
+            color: #333;
+        }
+        .paket-desc {
+            color: #888;
+            font-size: 14px;
+            margin-top: -2px;
+            margin-bottom: 15px;
+        }
+        .paket-feature {
+            font-size: 15px;
+            margin-bottom: 8px;
+            color: #444;
+        }
+        .beliebt-badge {
+            background-color: #2da68e;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: bold;
+            position: absolute;
+            top: -12px;
+            right: 15px;
+            text-transform: uppercase;
+        }
+        .paket-btn {
+            display: block; 
+            width: 100%; 
+            text-align: center; 
+            color: white !important; 
+            padding: 12px; 
+            border-radius: 8px; 
+            text-decoration: none; 
+            font-weight: bold; 
+            font-size: 16px;
+            margin-top: 5px;
+            transition: opacity 0.2s;
+        }
+        .paket-btn:hover {
+            opacity: 0.9;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    def render_paket(title, subtitle, price, credits_, price_per_credit, color_hex, btn_text, is_beliebt=False):
+        badge_html = "<div class='beliebt-badge'>Beliebt</div>" if is_beliebt else ""
+        card_class = "paket-card paket-card-beliebt" if is_beliebt else "paket-card"
+        
+        subject = urllib.parse.quote(f"Anfrage: {title}")
+        body = urllib.parse.quote(f"Grüezi,\\n\\nich interessiere mich für das {title} ({price}) und möchte gerne ein Paket anfragen.\\n\\nFreundliche Grüsse\\n[Dein Name]")
+        
+        st.markdown(f"""
+        <div class="{card_class}">
+            {badge_html}
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="color: {color_hex};" class="paket-title">{title}</div>
+                <div class="paket-price">{price}</div>
+            </div>
+            <div class="paket-desc">{subtitle}</div>
+            <hr style="margin: 15px 0px; border: 0; border-top: 1px solid #eee;">
+            <div class="paket-feature">
+                <span style="color: #4caf50; font-weight: bold; margin-right: 5px;">✓</span> 
+                {credits_} Flüge (Credits)
+            </div>
+            <div class="paket-feature">
+                <span style="color: #2196f3; margin-right: 5px;">📄</span> 
+                Preis pro Flug: {price_per_credit}
+            </div>
+            
+            <a href="mailto:info@safesite-drohne.ch?subject={subject}&body={body}" class="paket-btn" style="background-color: {color_hex};">
+                {btn_text}
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        render_paket("Paket S", "Der Einsteiger", "245 CHF", "5", "49.00 CHF", "#4eb0f5", "Paket anfragen")
+        render_paket("Paket M", "Der Standard", "890 CHF", "20", "44.50 CHF", "#2da68e", "Paket anfragen", True)
+        render_paket("Paket L", "Der Profi", "1'950 CHF", "50", "39.00 CHF", "#5b6bba", "Paket anfragen")
+        render_paket("Paket XL", "Enterprise / Konzern", "6'900 CHF", "200", "34.50 CHF", "#8359b8", "Paket anfragen")
+        
+        st.markdown("<p style='text-align:center; color:#888; font-size:12px; margin-top:20px;'>Alle Preise verstehen sich exkl. MwSt.<br>Weitere Laufzeiten oder Konditionen auf Anfrage.</p>", unsafe_allow_html=True)
+
