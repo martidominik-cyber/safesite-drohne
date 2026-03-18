@@ -373,10 +373,20 @@ def clean_json(text):
 def extract_frame(video_path, timestamp):
     try:
         cap = cv2.VideoCapture(video_path)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        duration = total_frames / fps if fps > 0 else 30
+        
+        # Timestamp auf Videolänge begrenzen
+        timestamp = max(0, min(float(timestamp), duration - 0.5))
+        
         cap.set(cv2.CAP_PROP_POS_MSEC, timestamp * 1000)
-        ret, frame = cap.read(); cap.release()
-        if ret: return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    except: return None
+        ret, frame = cap.read()
+        cap.release()
+        if ret:
+            return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    except:
+        return None
 
 def convert_image_if_needed(img_path):
     """Konvertiert Bilder in ein Format, das von PIL verarbeitet werden kann"""
@@ -934,6 +944,21 @@ elif st.session_state.current_page == 'safesite':
                     
                     with st.spinner("Analysiere Daten..."):
                         # Detaillierter Prompt mit spezifischen Schweizer Normen
+                        # Videolänge berechnen
+                        video_duration = 30  # Fallback
+                        max_ts = 29
+                        if st.session_state.m_type == "video":
+                            try:
+                                cap_info = cv2.VideoCapture(st.session_state.m_files[0])
+                                fps_info = cap_info.get(cv2.CAP_PROP_FPS)
+                                frames_info = cap_info.get(cv2.CAP_PROP_FRAME_COUNT)
+                                if fps_info > 0:
+                                    video_duration = frames_info / fps_info
+                                    max_ts = max(0, video_duration - 1)
+                                cap_info.release()
+                            except:
+                                pass
+
                         prompt = f"""
 Du bist ein äusserst strenger und erfahrener Schweizer Bau-Sicherheitsprüfer (SiBe) mit tiefem Wissen der BauAV und SUVA-Richtlinien.
 
@@ -1078,8 +1103,7 @@ ABSOLUT KRITISCHE REGELN (BauAV SR-832.311.141):
   * "Hoch" = Schwere Verstösse (z.B. Gerüst ohne Seitenschutz gemäss BauAV Art. 22, Graben >1.5m ohne Verspriesst gemäss BauAV Art. 20)
   * "Mittel" = Normative Abweichungen (z.B. Abstand Gerüst-Fassade 35cm statt <30cm gemäss BauAV Art. 47)
 - Analysiere JEDES Bild/Video separat und setze den bild_index korrekt (0, 1, 2, etc. je nach Bildnummer) bzw. bei Videos IMMER 0.
-- WICHTIG FÜR VIDEOS: Gib für JEDEN Mangel MINGEND den exakten Zeitstempel im Video (in Sekunden) als `zeitstempel_sekunden` an, wo der Mangel am besten zu sehen ist (z.B. 12 oder 45). Das ist PFLICHT, um das korrekte Standbild aus dem Video zu extrahieren!
-- Wenn du mehrere Mängel siehst, erstelle für JEDEN einen separaten Eintrag mit korrekter BauAV-Referenz und (bei Videos) unterschiedlichem Zeitstempel!
+- WICHTIG FÜR VIDEOS: Das Video ist NUR {video_duration:.0f} Sekunden lang! zeitstempel_sekunden MUSS zwischen 0 und {max_ts:.0f} liegen – NIEMALS grösser! Verteile Zeitstempel gleichmässig über das gesamte Video. Jeder Mangel braucht einen ANDEREN Zeitstempel!- Wenn du mehrere Mängel siehst, erstelle für JEDEN einen separaten Eintrag mit korrekter BauAV-Referenz und (bei Videos) unterschiedlichem Zeitstempel!
 - Beachte: Diese Verordnung (BauAV SR-832.311.141) ist bindend - alle Vorschriften MÜSSEN eingehalten werden!
 
 WICHTIG FÜR DIE BERICHTGESTALTUNG:
