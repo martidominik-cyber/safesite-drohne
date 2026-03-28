@@ -1,21 +1,26 @@
 """
 SafeSite Drohne – Berichterstellung (PDF & Word)
+Format: Exakt wie SSD_Bericht Vorlage
+  - Logo im Header (rechts)
+  - Titel: SICHERHEITS-INSPEKTION (DROHNE)
+  - Metadaten: Projekt, Datum, Inspektor, Status
+  - Orange Überschrift: ZUSAMMENFASSUNG / MÄNGEL (#F47E0E)
+  - Pro Mangel: Orange Nummer + Kategorie, dann Mangel/Verstoss/Massnahme, Bild
+  - Freigabe-Sektion mit Unterschriftslinien
 """
 import os
 import time
 import cv2
 from datetime import date
-from fpdf import FPDF
 from config import LOGO_FILE
 
-try:
-    from docx import Document
-    from docx.shared import Inches
-    WORD_AVAILABLE = True
-except ImportError:
-    WORD_AVAILABLE = False
+# SafeSite Orange
+ORANGE_HEX = "F47E0E"
+ORANGE_RGB = (244, 126, 14)
 
-
+# ============================================================
+# HILFSFUNKTIONEN
+# ============================================================
 def extract_frame(video_path: str, timestamp: float):
     try:
         cap = cv2.VideoCapture(video_path)
@@ -34,12 +39,14 @@ def extract_frame(video_path: str, timestamp: float):
 
 
 def _safe(text) -> str:
+    """Entfernt Zeichen, die fpdf nicht darstellen kann."""
     if text is None:
         return ""
     return str(text).encode("latin-1", "ignore").decode("latin-1")
 
 
 def _get_image(item, index, m_type, m_files):
+    """Gibt (img_path, is_temp) zurück."""
     if m_type == "video":
         frame = extract_frame(m_files[0], item.get("zeitstempel_sekunden", 0))
         if frame is not None:
@@ -53,37 +60,196 @@ def _get_image(item, index, m_type, m_files):
     return None, False
 
 
+# ============================================================
+# WORD-BERICHT (python-docx)
+# ============================================================
+try:
+    from docx import Document
+    from docx.shared import Inches, Pt, Cm, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    WORD_AVAILABLE = True
+except ImportError:
+    WORD_AVAILABLE = False
+
+
+def create_word(data, m_type, m_files, projekt, inspektor, status):
+    """Erstellt Word-Bericht im SSD-Format."""
+    if not WORD_AVAILABLE:
+        return None
+
+    doc = Document()
+
+    # --- Seitenränder ---
+    for section in doc.sections:
+        section.left_margin = Cm(1.8)
+        section.right_margin = Cm(1.8)
+        section.top_margin = Cm(1.5)
+        section.bottom_margin = Cm(1.5)
+
+    # --- Logo im Header (rechts) ---
+    if os.path.exists(LOGO_FILE):
+        try:
+            header = doc.sections[0].header
+            hp = header.paragraphs[0]
+            hp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            run = hp.add_run()
+            run.add_picture(LOGO_FILE, width=Cm(4))
+        except Exception:
+            pass
+
+    # --- Titel ---
+    title_p = doc.add_paragraph()
+    title_run = title_p.add_run("SICHERHEITS-INSPEKTION (DROHNE)")
+    title_run.bold = True
+    title_run.font.size = Pt(26)
+    title_run.font.color.rgb = RGBColor(0, 0, 0)
+
+    # --- Metadaten ---
+    meta_p = doc.add_paragraph()
+    _add_meta_line(meta_p, "Projekt:", f" {projekt}")
+    meta_p.add_run("\n")
+    _add_meta_line(meta_p, "Datum:", f" {date.today().strftime('%d.%m.%Y')}")
+    meta_p.add_run("\n")
+    _add_meta_line(meta_p, "Inspektor:", f" {inspektor}")
+    meta_p.add_run("\n")
+    _add_meta_line(meta_p, "Status:", f" {status}")
+
+    # --- Überschrift: ZUSAMMENFASSUNG / MÄNGEL ---
+    doc.add_paragraph()  # Leerzeile
+    summary_p = doc.add_paragraph()
+    summary_run = summary_p.add_run("ZUSAMMENFASSUNG / MÄNGEL")
+    summary_run.font.size = Pt(14)
+    summary_run.font.color.rgb = RGBColor(*ORANGE_RGB)
+    summary_run.underline = True
+
+    # --- Mängel ---
+    temps = []
+    for i, item in enumerate(data):
+        # Kategorie-Überschrift (orange)
+        cat_p = doc.add_paragraph()
+        cat_run = cat_p.add_run(f"{i+1}. {item.get('kategorie', 'Mangel')}")
+        cat_run.font.size = Pt(14)
+        cat_run.font.color.rgb = RGBColor(*ORANGE_RGB)
+
+        # Verification-Label (falls vorhanden)
+        verif_label = item.get("verifikation_label", "")
+        if verif_label:
+            verif_p = doc.add_paragraph()
+            verif_run = verif_p.add_run(verif_label)
+            verif_run.font.size = Pt(9)
+            verif_run.font.color.rgb = RGBColor(100, 100, 100)
+
+        # Mangel / Verstoss / Massnahme
+        content_p = doc.add_paragraph()
+
+        # Mangel
+        _add_meta_line(content_p, "Mangel:", f" {item.get('mangel', '-')}")
+        content_p.add_run("\n\n")
+
+        # Verstoss
+        _add_meta_line(content_p, "Verstoss:", f" {item.get('verstoss', '-')}")
+        content_p.add_run("\n\n")
+
+        # Massnahme
+        _add_meta_line(content_p, "Massnahme:", f" {item.get('massnahme', '-')}")
+
+        # Bild
+        img_path, is_temp = _get_image(item, i, m_type, m_files)
+        if img_path:
+            try:
+                doc.add_picture(img_path, width=Inches(5.5))
+            except Exception:
+                pass
+            if is_temp:
+                temps.append(img_path)
+
+        doc.add_paragraph()  # Leerzeile
+
+    # --- FREIGABE ---
+    doc.add_paragraph()
+    freigabe_nr = len(data) + 1
+    freigabe_p = doc.add_paragraph()
+    freigabe_run = freigabe_p.add_run(f"{freigabe_nr}. FREIGABE")
+    freigabe_run.font.size = Pt(14)
+    freigabe_run.font.color.rgb = RGBColor(*ORANGE_RGB)
+
+    doc.add_paragraph("Dieser Bericht wurde generiert durch SafeSite Drohne.")
+
+    # Hinweis (kursiv)
+    hint_p = doc.add_paragraph()
+    hint_run = hint_p.add_run(
+        "Hinweis: Dieser Bericht dient als visuelle Unterstützung. "
+        "Er entbindet die zuständigen nicht von der gesetzlichen Kontrollpflicht."
+    )
+    hint_run.italic = True
+    hint_run.font.size = Pt(9)
+
+    doc.add_paragraph()
+
+    # Unterschriftslinien
+    sig1 = doc.add_paragraph()
+    sig1.add_run(f"Erstellt durch: {inspektor} ").bold = False
+    sig1.add_run("____________________")
+
+    doc.add_paragraph()
+    sig2 = doc.add_paragraph()
+    sig2.add_run("Verantwortlicher: ").bold = False
+    sig2.add_run("____________________")
+
+    out = "Bericht.docx"
+    doc.save(out)
+
+    for t in temps:
+        try:
+            os.remove(t)
+        except Exception:
+            pass
+    return out
+
+
+def _add_meta_line(paragraph, label: str, value: str):
+    """Fügt bold Label + normal Value zu einem Paragraph hinzu."""
+    run_label = paragraph.add_run(label)
+    run_label.bold = True
+    paragraph.add_run(value)
+
+
+# ============================================================
+# PDF-BERICHT (fpdf2)
+# ============================================================
+from fpdf import FPDF
+
+
 class _PDF(FPDF):
     def header(self):
         if os.path.exists(LOGO_FILE):
             try:
-                self.image(LOGO_FILE, 160, 8, 40)
+                self.image(LOGO_FILE, 155, 8, 40)
             except Exception:
                 pass
-        self.ln(30)
+        self.ln(25)
 
 
 def create_pdf(data, m_type, m_files, projekt, inspektor, status):
+    """Erstellt PDF-Bericht im SSD-Format."""
     pdf = _PDF()
+    pdf.set_auto_page_break(auto=True, margin=20)
     pdf.add_page()
 
-    pdf.set_font("Arial", "B", 20)
+    # --- Titel ---
+    pdf.set_font("Arial", "B", 22)
     pdf.set_text_color(0, 0, 0)
-    pdf.cell(0, 10, "SICHERHEITS-INSPEKTION (DROHNE)", ln=True)
-    pdf.ln(8)
+    pdf.cell(0, 12, "SICHERHEITS-INSPEKTION (DROHNE)", ln=True)
+    pdf.ln(6)
 
-    for label, val in [
-        ("Projekt:", _safe(projekt)),
-        ("Datum:", f"{date.today().strftime('%d.%m.%Y')} | {time.strftime('%H:%M')} Uhr"),
-        ("Inspektor:", _safe(f"{inspektor} (SafeSite Drohne)")),
-    ]:
-        pdf.set_font("Arial", "B", 11)
-        pdf.cell(35, 8, label, ln=0)
-        pdf.set_font("Arial", "", 11)
-        pdf.cell(0, 8, val, ln=True)
+    # --- Metadaten ---
+    _pdf_meta(pdf, "Projekt:", _safe(projekt))
+    _pdf_meta(pdf, "Datum:", date.today().strftime("%d.%m.%Y"))
+    _pdf_meta(pdf, "Inspektor:", _safe(inspektor))
 
+    # Status mit Farbe
     pdf.set_font("Arial", "B", 11)
-    pdf.cell(35, 8, "Status:", ln=0)
+    pdf.cell(30, 7, "Status:", ln=0)
     pdf.set_font("Arial", "", 11)
     if "Massnahmen" in status:
         pdf.set_text_color(255, 153, 51)
@@ -91,63 +257,107 @@ def create_pdf(data, m_type, m_files, projekt, inspektor, status):
         pdf.set_text_color(204, 0, 0)
     else:
         pdf.set_text_color(0, 153, 0)
-    pdf.cell(0, 8, _safe(status), ln=True)
+    pdf.cell(0, 7, _safe(status), ln=True)
     pdf.set_text_color(0, 0, 0)
+    pdf.ln(8)
 
-    pdf.ln(10)
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 10, "1. ZUSAMMENFASSUNG / MAENGELLISTE", ln=True)
-    pdf.ln(5)
+    # --- Überschrift: ZUSAMMENFASSUNG / MÄNGEL ---
+    pdf.set_font("Arial", "BU", 14)
+    pdf.set_text_color(*ORANGE_RGB)
+    pdf.cell(0, 10, "ZUSAMMENFASSUNG / MAENGEL", ln=True)
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(4)
 
+    # --- Mängel ---
     temps = []
     for i, item in enumerate(data):
-        if pdf.get_y() > 220:
+        if pdf.get_y() > 230:
             pdf.add_page()
-        pdf.set_font("Arial", "B", 12)
-        pdf.set_text_color(204, 0, 0)
-        pdf.cell(0, 8, f"{i+1}. {_safe(item.get('kategorie','Mangel'))} ({_safe(item.get('prioritaet','Mittel'))})", ln=True)
-        pdf.set_font("Arial", "", 10)
+
+        # Kategorie-Überschrift (orange)
+        pdf.set_font("Arial", "B", 14)
+        pdf.set_text_color(*ORANGE_RGB)
+        cat = f"{i+1}. {_safe(item.get('kategorie', 'Mangel'))}"
+        pdf.cell(0, 10, cat, ln=True)
         pdf.set_text_color(0, 0, 0)
-        pdf.multi_cell(0, 5, f"Mangel: {_safe(item.get('mangel','-'))}")
-        pdf.ln(2)
-        pdf.multi_cell(0, 5, f"Verstoss: {_safe(item.get('verstoss','-'))}")
-        pdf.ln(2)
-        pdf.multi_cell(0, 5, f"Massnahme: {_safe(item.get('massnahme','-'))}")
-        pdf.ln(5)
-        img, is_temp = _get_image(item, i, m_type, m_files)
-        if img:
+
+        # Verification-Label
+        verif_label = item.get("verifikation_label", "")
+        if verif_label:
+            pdf.set_font("Arial", "I", 8)
+            pdf.set_text_color(100, 100, 100)
+            pdf.cell(0, 5, _safe(verif_label), ln=True)
+            pdf.set_text_color(0, 0, 0)
+
+        # Mangel
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(22, 6, "Mangel:", ln=0)
+        pdf.set_font("Arial", "", 10)
+        pdf.multi_cell(0, 5, _safe(item.get("mangel", "-")))
+        pdf.ln(3)
+
+        # Verstoss
+        if pdf.get_y() > 250:
+            pdf.add_page()
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(22, 6, "Verstoss:", ln=0)
+        pdf.set_font("Arial", "", 10)
+        pdf.multi_cell(0, 5, _safe(item.get("verstoss", "-")))
+        pdf.ln(3)
+
+        # Massnahme
+        if pdf.get_y() > 250:
+            pdf.add_page()
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(28, 6, "Massnahme:", ln=0)
+        pdf.set_font("Arial", "", 10)
+        pdf.multi_cell(0, 5, _safe(item.get("massnahme", "-")))
+        pdf.ln(4)
+
+        # Bild
+        img_path, is_temp = _get_image(item, i, m_type, m_files)
+        if img_path:
+            if pdf.get_y() > 160:
+                pdf.add_page()
             try:
-                pdf.image(img, x=20, w=120)
+                pdf.image(img_path, x=20, w=140)
             except Exception:
                 pass
-            pdf.ln(10)
+            pdf.ln(8)
             if is_temp:
-                temps.append(img)
+                temps.append(img_path)
 
+        pdf.ln(4)
+
+    # --- FREIGABE ---
     if pdf.get_y() > 200:
         pdf.add_page()
-    pdf.ln(15)
+    pdf.ln(10)
+
+    freigabe_nr = len(data) + 1
     pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 10, "4. FREIGABE", ln=True)
+    pdf.set_text_color(*ORANGE_RGB)
+    pdf.cell(0, 10, f"{freigabe_nr}. FREIGABE", ln=True)
+    pdf.set_text_color(0, 0, 0)
+
     pdf.set_font("Arial", "", 10)
-    pdf.cell(0, 10, "Dieser Bericht wurde generiert durch SafeSite Drohne.", ln=True)
+    pdf.cell(0, 8, "Dieser Bericht wurde generiert durch SafeSite Drohne.", ln=True)
+
     pdf.set_font("Arial", "I", 9)
-    pdf.multi_cell(0, 5, "Hinweis: Dieser Bericht dient als visuelle Unterstuetzung. Er entbindet die zustaendige Bauleitung nicht von der gesetzlichen Kontrollpflicht.")
-    pdf.ln(20)
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(40, 10, "Erstellt durch:", ln=0)
+    pdf.multi_cell(0, 5,
+        "Hinweis: Dieser Bericht dient als visuelle Unterstuetzung. "
+        "Er entbindet die zustaendigen nicht von der gesetzlichen Kontrollpflicht.")
+    pdf.ln(15)
+
+    # Unterschriftslinien
     pdf.set_font("Arial", "", 11)
-    pdf.cell(65, 10, _safe(inspektor), ln=0)
-    pdf.cell(0, 10, "_______________________ (Datum/Unterschrift)", ln=True, align="R")
+    pdf.cell(0, 10, f"Erstellt durch: {_safe(inspektor)} ____________________", ln=True)
     pdf.ln(5)
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(40, 10, "Verantwortlicher:", ln=0)
-    pdf.set_font("Arial", "", 11)
-    pdf.cell(65, 10, "Bauleitung / Polier", ln=0)
-    pdf.cell(0, 10, "_______________________ (Datum/Unterschrift)", ln=True, align="R")
+    pdf.cell(0, 10, "Verantwortlicher: ____________________", ln=True)
 
     out = "Bericht.pdf"
     pdf.output(out)
+
     for t in temps:
         try:
             os.remove(t)
@@ -156,57 +366,9 @@ def create_pdf(data, m_type, m_files, projekt, inspektor, status):
     return out
 
 
-def create_word(data, m_type, m_files, projekt, inspektor, status):
-    if not WORD_AVAILABLE:
-        return None
-    doc = Document()
-    if os.path.exists(LOGO_FILE):
-        try:
-            doc.add_picture(LOGO_FILE, width=Inches(1.5))
-            doc.paragraphs[-1].alignment = 2
-        except Exception:
-            pass
-    doc.add_heading("SICHERHEITS-INSPEKTION (DROHNE)", 0)
-    p = doc.add_paragraph()
-    p.add_run("Projekt: ").bold = True
-    p.add_run(f"{projekt}\n")
-    p.add_run("Datum: ").bold = True
-    p.add_run(f"{date.today().strftime('%d.%m.%Y')}\n")
-    p.add_run("Inspektor: ").bold = True
-    p.add_run(f"{inspektor}\n")
-    p.add_run("Status: ").bold = True
-    p.add_run(status)
-    doc.add_heading("1. ZUSAMMENFASSUNG / MAENGEL", level=1)
-    temps = []
-    for i, item in enumerate(data):
-        doc.add_heading(f"{i+1}. {item.get('kategorie','Mangel')}", level=2)
-        p = doc.add_paragraph()
-        p.add_run("Mangel: ").bold = True
-        p.add_run(f"{item.get('mangel','-')}\n")
-        p.add_run("Verstoss: ").bold = True
-        p.add_run(f"{item.get('verstoss','-')}\n")
-        p.add_run("Massnahme: ").bold = True
-        p.add_run(item.get("massnahme", "-"))
-        img, is_temp = _get_image(item, i, m_type, m_files)
-        if img:
-            try:
-                doc.add_picture(img, width=Inches(4.5))
-            except Exception:
-                pass
-            if is_temp:
-                temps.append(img)
-    doc.add_page_break()
-    doc.add_heading("4. FREIGABE", level=1)
-    doc.add_paragraph("Dieser Bericht wurde generiert durch SafeSite Drohne.")
-    p = doc.add_paragraph("Hinweis: Dient als visuelle Unterstuetzung.")
-    p.italic = True
-    doc.add_paragraph(f"\nErstellt durch: {inspektor} \t____________________")
-    doc.add_paragraph("\nVerantwortlicher: \t\t\t____________________")
-    out = "Bericht.docx"
-    doc.save(out)
-    for t in temps:
-        try:
-            os.remove(t)
-        except Exception:
-            pass
-    return out
+def _pdf_meta(pdf, label: str, value: str):
+    """Schreibt eine Metadaten-Zeile im PDF."""
+    pdf.set_font("Arial", "B", 11)
+    pdf.cell(30, 7, label, ln=0)
+    pdf.set_font("Arial", "", 11)
+    pdf.cell(0, 7, value, ln=True)
