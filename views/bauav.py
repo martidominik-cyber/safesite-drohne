@@ -5,10 +5,11 @@ from data import BAUAV_ARTIKEL, BAUAV_KATEGORIEN
 
 def render_bauav():
     st.header("⚖️ Bauarbeitenverordnung (BauAV)")
-    st.markdown("**Nachschlagewerk für die wichtigsten Artikel der Schweizer Bauarbeitenverordnung**")
+    st.markdown("**Vollständiges Nachschlagewerk – BauAV SR 832.311.141 (Stand 1. Januar 2024)**")
+    st.markdown(f"*{len(BAUAV_ARTIKEL)} Artikel aus allen 13 Kapiteln*")
     st.markdown("---")
 
-    query = st.text_input("🔍 Suche in BauAV", placeholder="z.B. Gerüst, Absturz, Leiter...")
+    query = st.text_input("🔍 Suche in BauAV", placeholder="z.B. Gerüst, Absturz, Leiter, Helm, Graben...")
     st.markdown("---")
 
     # Filtern
@@ -22,7 +23,7 @@ def render_bauav():
             st.success(f"✅ {len(filtered)} Artikel gefunden für '{query}'")
         else:
             st.warning(f"⚠️ Keine Artikel gefunden für '{query}'.")
-            st.info("💡 Versuchen Sie: Gerüst, Absturz, Leiter, Gräben, PSA...")
+            st.info("💡 Versuchen Sie: Gerüst, Absturz, Leiter, Gräben, Helm, Asbest, Dach...")
             return
     else:
         filtered = BAUAV_ARTIKEL
@@ -34,7 +35,7 @@ def render_bauav():
             if current_cat is not None:
                 st.divider()
             cat_name = BAUAV_KATEGORIEN[art["cat"]] if art["cat"] < len(BAUAV_KATEGORIEN) else "Sonstige"
-            st.markdown(f"### {art['cat']+1}. {cat_name}")
+            st.markdown(f"### {cat_name}")
             current_cat = art["cat"]
 
         with st.expander(f"Art. {art['nr']} – {art['titel']}"):
