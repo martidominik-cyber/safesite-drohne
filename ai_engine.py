@@ -86,48 +86,110 @@ def extract_video_frames(video_path: str, num_frames: int = 6) -> list:
 def build_gemini_prompt(num_files: int, video_duration: float = 30.0) -> str:
     max_ts = max(0, video_duration - 1)
     return f"""
-Du bist ein äusserst strenger und erfahrener Schweizer Bau-Sicherheitsprüfer (SiBe) mit tiefem Wissen der BauAV und SUVA-Richtlinien.
+Du bist ein äusserst strenger und erfahrener Schweizer Bau-Sicherheitsprüfer (SiBe) mit tiefem Wissen der BauAV SR 832.311.141 (Stand 1. Januar 2024) und SUVA-Richtlinien.
 
-KRITISCH: Du erhältst {num_files} Bilder zur Analyse. Analysiere JEDES Bild MILLIMETERGENAU und SYSTEMATISCH nach ALLEN relevanten Schweizer Sicherheitsnormen (BauAV und SUVA).
+KRITISCH: Du erhältst {num_files} Bilder zur Analyse. Analysiere JEDES Bild MILLIMETERGENAU und SYSTEMATISCH nach ALLEN relevanten Schweizer Sicherheitsnormen.
 
 KRITISCH: Der Parameter "bild_index" muss der Index des Bildes sein (0 für das erste Bild, 1 für das zweite, etc.).
 
+═══════════════════════════════════════════════════════
 PRÜFUNGSPROTOKOLL – Prüfe ALLE folgenden Punkte für JEDES Bild:
+═══════════════════════════════════════════════════════
 
-1. GERÜSTE (BauAV Art. 47–65): Abstand Fassade <30cm, dreiteiliger Seitenschutz (Holm/Zwischenholm/Bordbrett), Höhe ≥100cm, Bordbrett ≥15cm, Belagsbreite ≥60cm, Fundation, Verankerung, Nutzlastschild, Rollgerüste Räder arretiert.
+1. ABSTURZSICHERUNGEN (BauAV Art. 22–29)
+   - Art. 22: Seitenschutz = Geländerholm + mind. 1 Zwischenholm + Bordbrett. Oberkante Geländerholm ≥100 cm. Bordbrett ≥15 cm. Abstand zwischen Holmen ≤47 cm.
+   - Art. 23: Seitenschutz ZWINGEND bei: a) Absturzhöhe >2 m, b) Böschungen >2 m mit Neigung >45°, c) Gewässer.
+   - Art. 24: Niveauunterschiede >50 cm bei Böden im Gebäudeinnern → Geländerholm.
+   - Art. 25: Bodenöffnungen → Seitenschutz ODER durchbruchsichere, unverrückbare Abdeckung.
+   - Art. 26: Fassadengerüst bei Hochbau ab Absturzhöhe >3 m. Oberster Holm überragt höchste Absturzkante um ≥80 cm (≥100 cm wenn Seitenschutz <60 cm zur Kante).
+   - Art. 27: Auffangnetz/Fanggerüst für vorgefertigte Dach-/Deckenelemente ab >3 m.
+   - Art. 29: Gleichwertige Massnahmen wenn Seitenschutz technisch nicht möglich.
 
-2. ABSTURZKANTEN (BauAV Art. 22–26): Seitenschutz ab 2m, Fassadengerüst ab 3m bei Hochbau, Bodenöffnungen gesichert, Niveauunterschiede >50cm.
+2. PSA / SCHUTZHELMTRAGPFLICHT (BauAV Art. 6–7)
+   - Art. 6 Abs. 2: Helm ZWINGEND bei: a) Hochbau/Brückenbau bis Rohbauabschluss, b) Krane/Aushubgeräte, c) Graben-/Schachtbau/Baugruben, d) Steinbrüche, e) Untertagarbeiten, f) Sprengarbeiten, g) Rückbau/Abbruch, h) Gerüstbau, i) Rohrleitungen.
+   - Art. 6 Abs. 3: Helm MIT KINNBAND bei Seilsicherung, hängendem Seil, Helikopter.
+   - Art. 7: Warnkleider (fluoreszierend + retroreflektierend) bei Baumaschinen/Transportfahrzeugen.
 
-3. DÄCHER (BauAV Art. 41–46): Ab 2m Massnahmen an Dachrändern, Neigungsabhängige Sicherung, nicht durchbruchsichere Flächen, Dachöffnungen.
+3. VERKEHRSWEGE & ARBEITSPLÄTZE (BauAV Art. 9–16)
+   - Art. 9: Arbeitsplätze müssen sicher und über sichere Verkehrswege erreichbar sein.
+   - Art. 10: Scharfkantige Gegenstände entfernen/abdecken. Vorstehende Armierungsstäbe mit Haken oder Abdeckung.
+   - Art. 11: a) Baustellenzugänge ≥1 m breit, übrige Wege ≥60 cm. b) Freizuhalten. c) Gleitgefahr sichern (Schnee/Eis entfernen). d) Steigung >10° → Rutschsicherung. e) Treppen >5 Stufen → Handlauf.
+   - Art. 12: Nicht durchbruchsichere Flächen → Abschrankungen/Laufstege mit beidseitigem Seitenschutz.
+   - Art. 15: Niveauunterschiede >50 cm → Treppen oder geeignete Arbeitsmittel.
 
-4. LEITERN (BauAV Art. 20–21): Zustand, gegen Wegrutschen gesichert, oberste Sprossen, Arbeiten >2m.
+4. SCHUTZ VOR HERABFALLENDEN GEGENSTÄNDEN (BauAV Art. 17–18)
+   - Art. 17: Massnahmen gegen einstürzende Bauteile, herabfallende/herabgleitende/herabrollende Gegenstände.
+   - Art. 18: Werfen/Fallenlassen nur bei abgesperrtem Gefahrenbereich oder über geschlossene Rutschen/Kanäle.
 
-5. PSA (BauAV Art. 6–7): Schutzhelm bei Hochbau/Rohbau/Kran/Gerüstbau, Warnkleider bei Baumaschinen.
+5. BAUMASCHINEN & TRANSPORTFAHRZEUGE (BauAV Art. 19)
+   - Art. 19: Keine Personen im Gefahrenbereich. Falls nötig: Kameras, Spiegel oder Hilfsperson. Rückwärtsfahrten so kurz wie möglich.
 
-6. VERKEHRSWEGE (BauAV Art. 11, 15): Breite ≥1m/60cm, frei, Gleitgefahr, Steigung, Handlauf ab 5 Stufen.
+6. LEITERN (BauAV Art. 20–21)
+   - Art. 20: Nur geeignete, unbeschädigte Leitern. Tragfähige Unterlage, gegen Wegrutschen/Drehen/Kippen gesichert. Anstellleitern: oberste 3 Sprossen nur mit Plattform+Haltevorrichtung. Bockleitern: oberste 2 Sprossen nicht besteigen.
+   - Art. 21: Arbeiten von tragbaren Leitern nur wenn kein besseres Arbeitsmittel möglich. Ab >2 m Absturzhöhe: nur kurze Dauer + Absturzsicherung.
 
-7. HERABFALLENDE GEGENSTÄNDE (BauAV Art. 17–18): Absperrung, Schutzeinrichtungen.
+7. BESTEHENDE ANLAGEN & ELEKTRIZITÄT (BauAV Art. 30–31)
+   - Art. 30: Vor Baubeginn abklären ob Anlagen vorhanden (Strom, Gas, Wasser, Kanäle). Mit Eigentümern schriftlich Massnahmen festlegen.
+   - Art. 31: FI-Schutzschalter ≤30 mA bei Steckdosen ≤32 A obligatorisch. Über 32 A: ebenfalls Fehlerstromschutz.
 
-8. BAUMASCHINEN (BauAV Art. 19): Gefahrenbereich, Kameras/Spiegel.
+8. BRANDSCHUTZ (BauAV Art. 34)
+   - Art. 34: Löschmittel in unmittelbarer Nähe. Arbeitsplätze im Brandfall gefahrlos verlassbar. Explosionsgefährdete Bereiche absperren + Warndreieck.
 
-9. ELEKTRIZITÄT (BauAV Art. 30–31): FI-Schutzschalter, Kabelzustand.
+9. GERÜSTE (BauAV Art. 47–65)
+   - Art. 47: Trag- und Widerstandsfähigkeit (Eigengewicht, Nutzlast, Wind, Schnee, dynamische Beanspruchung).
+   - Art. 48: Beschädigte/verbogene/korrodierte Bestandteile → NICHT benützen.
+   - Art. 49: Fundation: tragfähige Unterlage, gegen Wegrutschen gesichert.
+   - Art. 50: Stabilität: alle Bestandteile gegen unbeabsichtigtes Verschieben gesichert.
+   - Art. 51: Verankerung: zug- und druckfest am Bauwerk. Fortlaufend mit Auf-/Abbau.
+   - Art. 55: Tragfähigkeit: Verputz/Maler 2,0 kN/m² (≥60 cm Belag), Maurer 3,0 kN/m² (≥90 cm), Fertigelemente 4,5 kN/m² (≥90 cm).
+   - Art. 57 Abs. 3: Abstand Belag–Fassade ≤30 cm in JEDER Bauphase. Sonst: zusätzliche Absturzmassnahmen.
+   - Art. 61: Tägliche Sichtkontrolle. Bei Mängeln: NICHT benützen. Schutt/Schnee/Eis entfernen.
+   - Art. 62: Nutzlastschild bei jedem Gerüstzugang gut sichtbar.
+   - Art. 64: Änderungen nur durch Gerüstersteller (geringfügige schriftlich abgestimmt).
+   - Art. 65: Rollgerüste: Standsicherheit prüfen, max. Einsatzhöhe einhalten, gegen Verschieben sichern, keine Personen beim Verschieben.
 
-10. BRANDSCHUTZ (BauAV Art. 34): Löschmittel, Fluchtwege.
+10. ARBEITEN AUF DÄCHERN (BauAV Art. 41–46)
+    - Art. 41: Ab >2 m Absturzhöhe: Massnahmen an Dachrändern. <10°: Spenglergang/Seitenschutz. 10–30°: Spenglergang. 30–45°: Spenglergang+Dachdeckerschutzwand. 45–60°: zusätzlich Seilsicherung/Podeste. >60°: nur Gerüst/Hubarbeitsbühne.
+    - Art. 44: Durchbruchsicherheit abklären. Dachöffnungen: Absturzsicherung unabhängig von Höhe.
+    - Art. 45: Nicht durchbruchsichere Dachflächen: nur von Laufstegen aus. Ab >3 m: Auffangnetze/Fanggerüste.
 
-11. GRÄBEN (BauAV Art. 68–78): Ab 1.5m Spriessung/Böschung, Grabenrand freihalten, Zugänge.
+11. GRÄBEN, SCHÄCHTE UND BAUGRUBEN (BauAV Art. 68–80)
+    - Art. 68: Über 1,5 m Tiefe: verspriessen ODER abböschung nach Art. 75.
+    - Art. 71: Ränder freihalten: bei Spriessungen ≥50 cm, bei Böschungen ≥1 m.
+    - Art. 73: Zugang über Treppen (alle 5 m Zwischenpodest). Leitern nur bis 5 m Tiefe.
+    - Art. 75: Böschungsneigung der Standfestigkeit anpassen. Bei Niederschlag/Lasten/Erschütterungen: Massnahmen.
+    - Art. 76: Sicherheitsnachweis (Fachingenieur) nötig bei: >4 m Höhe, Verhältnis >2:1 bzw. 1:1, Zusatzlasten, Grundwasser.
+    - Art. 77–78: Spriessungen: Regeln der Technik, Zusatzlasten berücksichtigen, mind. 15 cm über Grabenrand.
 
-12. GESUNDHEIT (BauAV Art. 36–38): Gehörschutz, Hitze/Kälte, Beleuchtung.
+12. GESUNDHEITSSCHUTZ (BauAV Art. 32–38)
+    - Art. 32: Asbest/PCB: Gefährdung ermitteln, Arbeitnehmer informieren.
+    - Art. 33: Luftqualität: O₂ 19–21%, MAK-Werte einhalten, Atemschutz falls nötig.
+    - Art. 34: Explosions-/Brandgefahr: Löschmittel bereit, Fluchtwege frei.
+    - Art. 36: Lärm über Grenzwert → Gehörschutz.
+    - Art. 37: Sonne/Hitze/Kälte → Schutzmassnahmen.
+    - Art. 38: Ausreichende Beleuchtung.
 
-REGELN:
-- Priorität: "Kritisch" = Lebensgefahr, "Hoch" = Schwere Verstösse, "Mittel" = Normative Abweichungen
-- Referenziere IMMER genaue BauAV-Artikel (z.B. "BauAV Art. 6 Abs. 2")
-- Wenn du etwas NICHT SICHER ERKENNEN kannst = Mangel melden!
+═══════════════════════════════════════════════════════
+REGELN FÜR DIE ANALYSE:
+═══════════════════════════════════════════════════════
+
+- Priorität: "Kritisch" = Lebensgefahr (Absturz, unter schwebender Last, fehlender Helm bei Rohbau), "Hoch" = Schwere Verstösse (Gerüst ohne Seitenschutz, Graben >1,5m ungesichert), "Mittel" = Normative Abweichungen (Abstand 35cm statt ≤30cm, fehlendes Nutzlastschild)
+- Referenziere IMMER die KORREKTEN BauAV-Artikel! WICHTIG:
+  * Absturzkanten/Seitenschutz = Art. 22–23 (NICHT Art. 17!)
+  * Bodenöffnungen = Art. 25 (NICHT Art. 19!)
+  * Fassadengerüst = Art. 26
+  * Herabfallende Gegenstände = Art. 17
+  * Baumaschinen/Fahrzeuge = Art. 19
+  * Böschungen = Art. 75–76 (NICHT Art. 21!)
+  * Gräben >1,5m = Art. 68
+- Wenn du etwas NICHT SICHER ERKENNEN kannst = Mangel melden ("Aufgrund der Distanz nicht eindeutig erkennbar, ob...")
 - VIDEOS: Das Video ist {video_duration:.0f}s lang. zeitstempel_sekunden MUSS zwischen 0 und {max_ts:.0f} liegen!
 - Jeder Mangel braucht einen ANDEREN Zeitstempel/bild_index!
-- Schreibe DETAILLIERTE, PROFESSIONELLE Texte!
+- Schreibe DETAILLIERTE, PROFESSIONELLE Texte wie ein erfahrener SiBe!
+- Beschreibe den BEFUND genau (was siehst du?), die NORM (welche Vorschrift wird verletzt?), und die MASSNAHME (was muss gemacht werden?)
 
 Antworte NUR als JSON:
-[{{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "DETAILLIERTE BESCHREIBUNG...", "verstoss": "Verstoss BauAV Art. X...", "massnahme": "KONKRETE Massnahme...", "zeitstempel_sekunden": 0, "bild_index": 0}}]
+[{{"kategorie": "...", "prioritaet": "Kritisch/Hoch/Mittel", "mangel": "DETAILLIERTE BESCHREIBUNG...", "verstoss": "Verstoss gegen BauAV Art. X Abs. Y...", "massnahme": "KONKRETE Massnahme...", "zeitstempel_sekunden": 0, "bild_index": 0}}]
 """
 
 
@@ -136,7 +198,7 @@ Antworte NUR als JSON:
 # ============================================================
 def build_claude_prompt(gemini_findings: list, num_images: int) -> str:
     findings_json = json.dumps(gemini_findings, ensure_ascii=False, indent=2)
-    return f"""Du bist ein äusserst strenger und erfahrener Schweizer Bau-Sicherheitsprüfer (SiBe) und Qualitätskontrolleur. Deine Aufgabe ist eine ZWEITE, UNABHÄNGIGE Prüfung.
+    return f"""Du bist ein äusserst strenger und erfahrener Schweizer Bau-Sicherheitsprüfer (SiBe) und Qualitätskontrolleur mit perfekter Kenntnis der BauAV SR 832.311.141 (Stand 1. Januar 2024).
 
 Eine erste KI (Gemini) hat die Baustellen-Bilder bereits analysiert. Hier sind deren Ergebnisse:
 
@@ -149,22 +211,51 @@ Du erhältst die gleichen {num_images} Bilder. Deine Aufgabe:
 1. EIGENE ANALYSE: Analysiere JEDES Bild selbst nach BauAV und SUVA-Richtlinien.
 
 2. PRÜFE Gemini's Ergebnisse kritisch:
-   - Sind die Mängel KORREKT erkannt? (Nicht übertrieben, nicht untertrieben?)
-   - Stimmen die BauAV-Artikel-Referenzen?
-   - Sind die Prioritäten richtig gesetzt?
+   - Sind die Mängel KORREKT erkannt?
+   - Stimmen die BauAV-Artikel-Referenzen? HÄUFIGE FEHLER von Gemini die du korrigieren musst:
+     * Art. 17 für Absturzkanten → FALSCH! Korrekt: Art. 23 (Seitenschutz ab 2m) oder Art. 22 (Anforderungen Seitenschutz)
+     * Art. 19 für Bodenöffnungen → FALSCH! Korrekt: Art. 25 (Bodenöffnungen)
+     * Art. 21 für Böschungen → FALSCH! Korrekt: Art. 75 (Standfestigkeit Böschungen) oder Art. 68 (Gräben >1,5m)
+     * Art. 26 für Materiallagerung → FALSCH! Art. 26 = Fassadengerüste bei Hochbau
+     * Art. 5 für Arbeitgeber-Pflichten → FALSCH! Art. 5 = Organisation Arbeitssicherheit (Person bezeichnen)
+     * Art. 25 für Verkehrswege → FALSCH! Art. 25 = Bodenöffnungen. Verkehrswege = Art. 11
+     * Art. 24 für Leitern → FALSCH! Art. 24 = Niveauunterschiede Böden. Leitern = Art. 20-21
+     * Art. 47 für Gerüst-Innenschutz → PRÜFEN! Art. 47 = Trag-/Widerstandsfähigkeit. Abstand Fassade = Art. 57 Abs. 3
+   - Sind die Prioritäten richtig?
 
 3. ERGÄNZE fehlende Mängel die Gemini ÜBERSEHEN hat.
 
-4. KORRIGIERE falsche Angaben (z.B. falsche Artikel-Nummern, falsche Priorität).
+4. KORRIGIERE falsche Angaben (insbesondere falsche Artikel-Nummern!).
 
-5. ENTFERNE unbegründete Mängel (z.B. wenn Gemini etwas sieht, das gar nicht existiert).
+5. ENTFERNE unbegründete Mängel.
 
-Antworte NUR als JSON mit diesem Format:
+KORREKTE ARTIKEL-REFERENZEN (BauAV SR 832.311.141):
+- Seitenschutz/Absturzkanten: Art. 22 (Anforderungen), Art. 23 (Verwendung ab 2m)
+- Bodenöffnungen: Art. 25
+- Fassadengerüst Hochbau: Art. 26 (ab 3m)
+- Herabfallende Gegenstände: Art. 17
+- Verkehrswege: Art. 11
+- Baumaschinen/Fahrzeuge: Art. 19
+- Leitern: Art. 20 (Anforderungen), Art. 21 (Arbeiten)
+- Helm: Art. 6 (Abs. 2 für Pflichtfälle)
+- Warnkleider: Art. 7
+- Gerüst Abstand Fassade: Art. 57 Abs. 3 (max. 30cm)
+- Gerüst Sichtkontrolle: Art. 61
+- Gerüst Nutzlastschild: Art. 62
+- Rollgerüste: Art. 65
+- Gräben >1,5m: Art. 68
+- Böschungen: Art. 75 (Standfestigkeit), Art. 76 (Sicherheitsnachweis)
+- Grabenrand freihalten: Art. 71
+- Brandschutz: Art. 34
+- FI-Schutzschalter: Art. 31
+- Dacharbeiten: Art. 41 (Massnahmen), Art. 44 (Durchbruch), Art. 45 (nicht durchbruchsicher)
+
+Antworte NUR als JSON:
 [{{
   "kategorie": "...",
   "prioritaet": "Kritisch/Hoch/Mittel",
   "mangel": "DETAILLIERTE BESCHREIBUNG...",
-  "verstoss": "Verstoss BauAV Art. X...",
+  "verstoss": "Verstoss gegen BauAV Art. X Abs. Y...",
   "massnahme": "KONKRETE Massnahme...",
   "zeitstempel_sekunden": 0,
   "bild_index": 0,
@@ -178,7 +269,7 @@ REGELN:
 - "verifikation": "neu" = Mangel den Gemini ÜBERSEHEN hat
 - "verifikation": "entfernt" = Gemini hat etwas gemeldet das KEIN echter Mangel ist (dann Begründung warum)
 - bild_index: 0 für erstes Bild, 1 für zweites, etc.
-- Referenziere IMMER die korrekten BauAV-Artikel!
+- Referenziere IMMER die KORREKTEN BauAV-Artikel mit Absatz!
 """
 
 
