@@ -37,6 +37,19 @@ def get_api_key() -> str:
         st.error("⚠️ API Key fehlt! Bitte unter Settings > Secrets den Key GOOGLE_API_KEY eintragen.")
         st.stop()
 
+
+def get_anthropic_key() -> str:
+    """Holt den Anthropic API Key aus Streamlit Secrets."""
+    import streamlit as st
+    try:
+        return st.secrets["ANTHROPIC_API_KEY"]
+    except Exception:
+        return ""  # Optional – App läuft auch ohne Claude
+
+
+# Claude-Modell für Dual-AI-Verification
+CLAUDE_MODEL = "claude-opus-4-20250514"
+
 # ============================================================
 # STYLING
 # ============================================================
