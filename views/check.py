@@ -104,7 +104,11 @@ def _render_analyse():
         return
 
     # Ergebnisse anzeigen
-    st.success(f"⚠️ {len(st.session_state.analysis_data)} Mängel gefunden")
+    total = len(st.session_state.analysis_data)
+    confirmed_count = sum(1 for f in st.session_state.analysis_data
+                          if f.get("verifikation_label", "").startswith("✅✅"))
+    st.success(f"⚠️ {total} Mängel gefunden"
+               + (f" — davon {confirmed_count} durch Dual-AI bestätigt" if confirmed_count else ""))
 
     # Credits (nur für Kunden)
     if not is_admin() and st.session_state.username:
@@ -146,8 +150,16 @@ def _render_analyse():
                     if idx < len(st.session_state.m_files):
                         st.image(st.session_state.m_files[idx])
             with c2:
+                # Verification-Label anzeigen
+                verif_label = item.get("verifikation_label", "")
+                if verif_label:
+                    st.caption(verif_label)
                 st.markdown(f":orange[**{item.get('prioritaet')}: {item.get('mangel')}**]")
                 st.write(item.get("massnahme"))
+                # Verification-Detail falls vorhanden
+                verif_detail = item.get("verifikation_detail", "")
+                if verif_detail:
+                    st.caption(f"📋 {verif_detail}")
                 if st.checkbox("Aufnehmen", True, key=f"check_{i}"):
                     confirmed.append(item)
             st.divider()
