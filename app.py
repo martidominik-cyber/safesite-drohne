@@ -52,7 +52,7 @@ with st.sidebar:
     if os.path.exists(LOGO_FILE):
         st.image(LOGO_FILE, use_container_width=True)
 
-    st.title("Menü")
+    st.markdown("")
 
     # Navigation aufbauen
     page_list = list(PAGES.values())
@@ -75,7 +75,7 @@ with st.sidebar:
         current_idx = 0
         st.session_state.current_page = "home"
 
-    selected = st.radio("Bereich wählen:", page_list, index=current_idx)
+    selected = st.radio("Navigation", page_list, index=current_idx, label_visibility="collapsed")
 
     # Ausgewählte Seite setzen
     for key, label in zip(page_keys, page_list):
@@ -87,10 +87,10 @@ with st.sidebar:
 
     # === LOGIN / LOGOUT ===
     if not st.session_state.logged_in:
-        st.markdown("### 🔐 Login")
+        st.markdown("##### 🔐 Login")
         with st.form("login_form", clear_on_submit=False):
-            u = st.text_input("Username / Email")
-            p = st.text_input("Passwort", type="password")
+            u = st.text_input("Username / Email", label_visibility="collapsed", placeholder="Username / Email")
+            p = st.text_input("Passwort", type="password", label_visibility="collapsed", placeholder="Passwort")
 
             if st.form_submit_button("Einloggen", use_container_width=True, type="primary"):
                 # Direkt prüfen
@@ -105,18 +105,28 @@ with st.sidebar:
                             if key and check_login(key, p):
                                 login_user(key)
                                 st.rerun()
-                    st.error("❌ Falscher Username/Email oder Passwort!")
+                    st.error("❌ Falscher Login!")
     else:
-        st.markdown("### 👤 Benutzer")
-        st.info(f"✅ Eingeloggt als: **{st.session_state.username}**")
+        st.markdown(f"##### ✅ {st.session_state.username}")
 
         if not is_admin() and st.session_state.username:
             credits = get_credits(st.session_state.username)
-            st.metric("🪙 SafeSite Credits", credits)
+            st.metric("🪙 Credits", credits)
 
         if st.button("Logout", use_container_width=True):
             logout_user()
             st.rerun()
+
+    # Sidebar Footer
+    st.markdown("")
+    st.markdown("")
+    st.markdown(
+        '<div style="text-align:center; font-size:10px; color:#666; padding-top:20px;">'
+        'SafeSite Drohne v2.0<br>'
+        'Dual-AI-Verification'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 # ============================================================
 # 4. ROUTING
