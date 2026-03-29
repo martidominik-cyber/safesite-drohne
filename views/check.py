@@ -181,6 +181,19 @@ def _render_analyse():
             st.session_state.meta_i = insp
             st.session_state.meta_s = stat
             st.session_state.app_step = "bericht"
+
+            # Audit-Trail: Bericht in Supabase speichern
+            try:
+                from db import save_bericht
+                save_bericht(
+                    projekt=proj, inspektor=insp, status=stat,
+                    anzahl_maengel=len(confirmed),
+                    erstellt_von=st.session_state.username,
+                    ergebnisse=confirmed,
+                )
+            except Exception:
+                pass  # Audit-Trail ist optional, App soll nicht abstürzen
+
             st.rerun()
 
 
